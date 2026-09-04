@@ -5,6 +5,8 @@ import { db } from '@/lib/db';
 import * as schema from '@/lib/db/schema';
 import { canAccessTransaction, getUser } from '@/lib/auth';
 import { dispatchWebhook } from '@/lib/services/webhook-service';
+import { ensureDatabaseInitialized } from '@/lib/db/init-db';
+import { findTransactionByIdOrNumber } from '@/lib/db/transaction-utils';
 
 const disputeSchema = z.object({
   category: z.enum(['DAMAGED_GOODS', 'SHORTAGE', 'SPECIFICATION_MISMATCH', 'DELAY', 'OTHER']),
@@ -17,17 +19,15 @@ type Params = { params: Promise<{ id: string }> };
 
 export async function POST(request: NextRequest, { params }: Params) {
   try {
+    await ensureDatabaseInitialized();
+
     const user = await getUser(request);
     if (!user) {
       return Response.json({ error: 'Not authenticated' }, { status: 401 });
     }
 
     const { id } = await params;
-    const [tx] = await db
-      .select()
-      .from(schema.transactions)
-      .where(eq(schema.transactions.id, id))
-      .limit(1);
+    const tx = await findTransactionByIdOrNumber(id);
 
     if (!tx) {
       return Response.json({ error: 'Transaction not found' }, { status: 404 });
@@ -51,6 +51,7 @@ export async function POST(request: NextRequest, { params }: Params) {
 
     const { category, reason, claimAmount, description } = parsed.data;
     const now = new Date();
+    const txUuid = tx.id;
 
     // 1. Halt SLA auto-release timers and preserve previous deadline
     const previousAutoReleaseAt = tx.autoReleaseAt;
@@ -59,7 +60,7 @@ export async function POST(request: NextRequest, { params }: Params) {
     const [dispute] = await db
       .insert(schema.disputes)
       .values({
-        transactionId: id,
+        transactionId: txUuid,
         raisedById: user.id,
         category,
         reason,
@@ -91,11 +92,11 @@ export async function POST(request: NextRequest, { params }: Params) {
         },
         updatedAt: now,
       })
-      .where(eq(schema.transactions.id, id));
+      .where(eq(schema.transactions.id, txUuid));
 
     // 4. Record audit log
     await db.insert(schema.auditLogs).values({
-      transactionId: id,
+      transactionId: txUuid,
       userId: user.id,
       actor: user.email,
       event: 'DISPUTE_RAISED',
@@ -113,7 +114,7 @@ export async function POST(request: NextRequest, { params }: Params) {
     // 5. Fire webhook notification
     try {
       await dispatchWebhook(
-        id,
+        txUuid,
         'MANUAL_REVIEW_TRIGGERED',
         {
           event: 'DISPUTE_RAISED',
@@ -135,8 +136,9 @@ export async function POST(request: NextRequest, { params }: Params) {
       transactionStatus: 'DISPUTED',
       timersHalted: true,
     }, { status: 201 });
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error('Dispute POST error:', err);
-    return Response.json({ error: err.message || 'Failed to raise dispute' }, { status: 500 });
+    const msg = err instanceof Error ? err.message : 'Failed to raise dispute';
+    return Response.json({ error: msg }, { status: 500 });
   }
 }

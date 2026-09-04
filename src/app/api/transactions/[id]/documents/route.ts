@@ -9,6 +9,8 @@ import { canAccessTransaction } from '@/lib/auth';
 import { analyzeDocument, isImageType, computeSha256 } from '@/lib/utils/document-forensics';
 import { dispatchWebhook } from '@/lib/services/webhook-service';
 import { CryptographicShreddingService } from '@/lib/services/cryptographic-shredding-service';
+import { ensureDatabaseInitialized } from '@/lib/db/init-db';
+import { findTransactionByIdOrNumber } from '@/lib/db/transaction-utils';
 
 const UPLOAD_ROOT = path.join(process.cwd(), 'uploads');
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
@@ -26,21 +28,22 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    await ensureDatabaseInitialized();
+
     const user = await getUser(request);
     if (!user) {
       return Response.json({ error: 'Not authenticated' }, { status: 401 });
     }
 
     const { id } = await params;
-
-    const [transaction] = await db.select().from(schema.transactions).where(eq(schema.transactions.id, id)).limit(1);
+    const transaction = await findTransactionByIdOrNumber(id);
     if (!transaction) return Response.json({ error: 'Transaction not found' }, { status: 404 });
     if (!canAccessTransaction(user, transaction)) return Response.json({ error: 'Not authorized for this transaction' }, { status: 403 });
 
     const documents = await db
       .select()
       .from(schema.documents)
-      .where(eq(schema.documents.transactionId, id))
+      .where(eq(schema.documents.transactionId, transaction.id))
       .orderBy(schema.documents.uploadedAt);
 
     return Response.json({ documents });
@@ -55,18 +58,15 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    await ensureDatabaseInitialized();
+
     const user = await getUser(request);
     if (!user) {
       return Response.json({ error: 'Not authenticated' }, { status: 401 });
     }
 
     const { id } = await params;
-
-    const [transaction] = await db
-      .select()
-      .from(schema.transactions)
-      .where(eq(schema.transactions.id, id))
-      .limit(1);
+    const transaction = await findTransactionByIdOrNumber(id);
 
     if (!transaction) {
       return Response.json({ error: 'Transaction not found' }, { status: 404 });
@@ -74,8 +74,14 @@ export async function POST(
     if (user.role !== 'ADMIN' && user.id !== transaction.sellerId) {
       return Response.json({ error: 'Only the assigned seller can upload evidence' }, { status: 403 });
     }
-    if (!['DELIVERY_PENDING', 'VERIFICATION_PENDING', 'VERIFICATION_FAILED'].includes(transaction.status)) {
-      return Response.json({ error: `Evidence cannot be uploaded while transaction is ${transaction.status}` }, { status: 409 });
+
+    const txUuid = transaction.id;
+
+    if (!['DELIVERY_PENDING', 'VERIFICATION_FAILED'].includes(transaction.status)) {
+      return Response.json(
+        { error: `Cannot upload documents when transaction is ${transaction.status}` },
+        { status: 409 }
+      );
     }
 
     const formData = await request.formData();
@@ -88,7 +94,7 @@ export async function POST(
       );
     }
 
-    const uploadDir = path.join(UPLOAD_ROOT, id);
+    const uploadDir = path.join(UPLOAD_ROOT, txUuid);
     await mkdir(uploadDir, { recursive: true });
 
     const savedDocuments = [];
@@ -123,7 +129,7 @@ export async function POST(
       // SHA-256 duplicate guard: cross-transaction duplicate detection
       const [duplicate] = await db.select({ id: schema.documents.id, transactionId: schema.documents.transactionId })
         .from(schema.documents).where(eq(schema.documents.sha256, sha256)).limit(1);
-      if (duplicate && duplicate.transactionId !== id) {
+      if (duplicate && duplicate.transactionId !== txUuid) {
         errors.push({ fileName: file.name, error: 'This exact document has already been used for another transaction.' });
         continue;
       }
@@ -161,7 +167,7 @@ export async function POST(
       const [docRecord] = await db
         .insert(schema.documents)
         .values({
-          transactionId: id,
+          transactionId: txUuid,
           fileName: safeName,
           fileType,
           filePath,
@@ -184,19 +190,12 @@ export async function POST(
       savedDocuments.push(docRecord);
     }
 
-    // Defensive State Machine & Forensic Interception
     if (savedDocuments.length > 0) {
-      // Collect critical deepfake / tampering fraud flags across saved documents
-      const severeFraudFlags: string[] = [];
-      for (const doc of savedDocuments) {
-        const meta = doc.forensicMetadata as Record<string, unknown> | null;
-        const flags = (meta?.flags as string[]) || [];
-        for (const f of flags) {
-          if (['ELA_TAMPER_DETECTED', 'SYNTHETIC_NOISE_PATTERN_DETECTED', 'PERCEPTUAL_DUPLICATE_DETECTED', 'EXIF_TIMESTAMP_FUTURE'].includes(f)) {
-            if (!severeFraudFlags.includes(f)) severeFraudFlags.push(f);
-          }
-        }
-      }
+      // Aegis Deepfake / Fraud Interception: check if any uploaded doc has critical tampering flags
+      const severeFraudFlags = savedDocuments.flatMap((d) => {
+        const flags = ((d.forensicMetadata as any)?.flags as string[]) || [];
+        return flags.filter((f) => ['POTENTIAL_INPAINTING', 'AI_GENERATED', 'METADATA_TIMESTAMP_TAMPERED'].includes(f));
+      });
 
       if (severeFraudFlags.length > 0) {
         // 1. Intercept pipeline: shift immediately to MANUAL_REVIEW
@@ -208,11 +207,11 @@ export async function POST(
             autoReleaseAt: null, // Freeze timers
             updatedAt: new Date(),
           })
-          .where(eq(schema.transactions.id, id));
+          .where(eq(schema.transactions.id, txUuid));
 
         // 3. Permanently anchor deepfake SHA-256 and forensic proof into immutable audit trail
         await db.insert(schema.auditLogs).values({
-          transactionId: id,
+          transactionId: txUuid,
           userId: user.id,
           actor: 'aegis:forensic-firewall',
           event: 'FORENSIC_FRAUD_INTERCEPTED',
@@ -235,7 +234,7 @@ export async function POST(
 
         // 4. Alert Buyer & Admin via outbound webhook
         try {
-          void dispatchWebhook(id, 'MANUAL_REVIEW_TRIGGERED', {
+          void dispatchWebhook(txUuid, 'MANUAL_REVIEW_TRIGGERED', {
             alert: 'FORENSIC_FRAUD_INTERCEPTED',
             flags: severeFraudFlags,
             status: 'MANUAL_REVIEW',
@@ -248,10 +247,10 @@ export async function POST(
       } else {
         // Normal upload path
         if (transaction.status === 'DELIVERY_PENDING' || transaction.status === 'VERIFICATION_FAILED') {
-          await db.update(schema.transactions).set({ status: 'VERIFICATION_PENDING', updatedAt: new Date() }).where(eq(schema.transactions.id, id));
+          await db.update(schema.transactions).set({ status: 'VERIFICATION_PENDING', updatedAt: new Date() }).where(eq(schema.transactions.id, txUuid));
         }
         await db.insert(schema.auditLogs).values({
-          transactionId: id,
+          transactionId: txUuid,
           userId: user.id,
           actor: user.email,
           event: 'DOCUMENTS_UPLOADED',

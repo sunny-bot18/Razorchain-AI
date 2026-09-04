@@ -4,31 +4,48 @@ import { db } from '@/lib/db';
 import * as schema from '@/lib/db/schema';
 import { canAccessTransaction, getUser } from '@/lib/auth';
 import { generateAuditDossierPdf } from '@/lib/services/pdf-certificate-service';
+import { ensureDatabaseInitialized } from '@/lib/db/init-db';
+import { findTransactionByIdOrNumber } from '@/lib/db/transaction-utils';
 
 type Params = { params: Promise<{ id: string }> };
 
+function toIsoSafe(dateVal: unknown): string {
+  if (!dateVal) return new Date().toISOString();
+  if (dateVal instanceof Date) return dateVal.toISOString();
+  if (typeof dateVal === 'string') {
+    const d = new Date(dateVal);
+    return isNaN(d.getTime()) ? dateVal : d.toISOString();
+  }
+  return new Date().toISOString();
+}
+
 export async function GET(request: NextRequest, { params }: Params) {
   try {
+    await ensureDatabaseInitialized();
+
     const user = await getUser(request);
     if (!user) return Response.json({ error: 'Not authenticated' }, { status: 401 });
     const { id } = await params;
-    const [tx] = await db.select().from(schema.transactions).where(eq(schema.transactions.id, id)).limit(1);
+    const tx = await findTransactionByIdOrNumber(id);
     if (!tx) return Response.json({ error: 'Transaction not found' }, { status: 404 });
     if (!canAccessTransaction(user, tx)) return Response.json({ error: 'Not authorized' }, { status: 403 });
+
+    const txUuid = tx.id;
 
     const auditLogs = await db
       .select()
       .from(schema.auditLogs)
-      .where(eq(schema.auditLogs.transactionId, id))
-      .orderBy(schema.auditLogs.timestamp);
+      .where(eq(schema.auditLogs.transactionId, txUuid))
+      .orderBy(schema.auditLogs.timestamp)
+      .catch(() => []);
 
     const auditData = {
       transactionNumber: tx.transactionNumber,
       transactionId: tx.id,
-      merkleRoot: (tx as any).merkleRoot || '0x7f83b1657ff1fc53b92dc18148a1d65dfc2d4b1fa3d677284addd200126d9069',
+      merkleRoot: (tx as unknown as { merkleRoot?: string }).merkleRoot || '0x7f83b1657ff1fc53b92dc18148a1d65dfc2d4b1fa3d677284addd200126d9069',
       generatedAt: new Date().toISOString(),
       auditTrail: auditLogs.map((l) => ({
-        timestamp: l.timestamp.toISOString(),
+        timestamp: toIsoSafe(l.timestamp),
         actor: l.actor,
         event: l.event,
         action: l.action,
@@ -49,6 +66,7 @@ export async function GET(request: NextRequest, { params }: Params) {
     });
   } catch (err) {
     console.error('Audit PDF error:', err);
-    return Response.json({ error: 'Failed to generate audit PDF' }, { status: 500 });
+    const msg = err instanceof Error ? err.message : 'Failed to generate audit PDF';
+    return Response.json({ error: `Failed to generate audit PDF: ${msg}` }, { status: 500 });
   }
 }

@@ -5,6 +5,8 @@ import * as schema from '@/lib/db/schema';
 import { getUser } from '@/lib/auth';
 import { PaymentService } from '@/lib/services/payment-service';
 import { dispatchWebhook } from '@/lib/services/webhook-service';
+import { ensureDatabaseInitialized } from '@/lib/db/init-db';
+import { findTransactionByIdOrNumber } from '@/lib/db/transaction-utils';
 
 const STATUS_SEQUENCE: Array<
   ['CREATED' | 'PAYMENT_AUTHORIZED' | 'FUNDS_RESERVED' | 'DELIVERY_PENDING', string]
@@ -19,18 +21,15 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    await ensureDatabaseInitialized();
+
     const user = await getUser(request);
     if (!user) {
       return Response.json({ error: 'Not authenticated' }, { status: 401 });
     }
 
     const { id } = await params;
-
-    const [transaction] = await db
-      .select()
-      .from(schema.transactions)
-      .where(eq(schema.transactions.id, id))
-      .limit(1);
+    const transaction = await findTransactionByIdOrNumber(id);
 
     if (!transaction) {
       return Response.json({ error: 'Transaction not found' }, { status: 404 });

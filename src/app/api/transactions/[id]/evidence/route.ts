@@ -6,6 +6,8 @@ import { db } from '@/lib/db';
 import * as schema from '@/lib/db/schema';
 import { canAccessTransaction, getUser } from '@/lib/auth';
 import { computeSha256 } from '@/lib/utils/document-forensics';
+import { ensureDatabaseInitialized } from '@/lib/db/init-db';
+import { findTransactionByIdOrNumber } from '@/lib/db/transaction-utils';
 
 const UPLOAD_ROOT = path.join(process.cwd(), 'uploads');
 
@@ -13,17 +15,15 @@ type Params = { params: Promise<{ id: string }> };
 
 export async function POST(request: NextRequest, { params }: Params) {
   try {
+    await ensureDatabaseInitialized();
+
     const user = await getUser(request);
     if (!user) {
       return Response.json({ error: 'Not authenticated' }, { status: 401 });
     }
 
     const { id } = await params;
-    const [tx] = await db
-      .select()
-      .from(schema.transactions)
-      .where(eq(schema.transactions.id, id))
-      .limit(1);
+    const tx = await findTransactionByIdOrNumber(id);
 
     if (!tx) {
       return Response.json({ error: 'Transaction not found' }, { status: 404 });
@@ -32,6 +32,8 @@ export async function POST(request: NextRequest, { params }: Params) {
     if (!canAccessTransaction(user, tx)) {
       return Response.json({ error: 'Not authorized for this transaction' }, { status: 403 });
     }
+
+    const txUuid = tx.id;
 
     const contentType = request.headers.get('content-type') || '';
     let fileName = 'inspection_report.txt';
@@ -71,7 +73,7 @@ export async function POST(request: NextRequest, { params }: Params) {
     const sha256Digest = computeSha256(buffer);
 
     // Save file on disk
-    const txDir = path.join(UPLOAD_ROOT, id, 'disputes');
+    const txDir = path.join(UPLOAD_ROOT, txUuid, 'disputes');
     await mkdir(txDir, { recursive: true });
     const storedPath = path.join(txDir, `${Date.now()}_${fileName}`);
     await writeFile(storedPath, buffer);
@@ -80,7 +82,7 @@ export async function POST(request: NextRequest, { params }: Params) {
     const [doc] = await db
       .insert(schema.documents)
       .values({
-        transactionId: id,
+        transactionId: txUuid,
         fileName,
         fileType,
         filePath: storedPath,
@@ -101,7 +103,7 @@ export async function POST(request: NextRequest, { params }: Params) {
     const [activeDispute] = await db
       .select()
       .from(schema.disputes)
-      .where(and(eq(schema.disputes.transactionId, id), eq(schema.disputes.status, 'OPEN')))
+      .where(and(eq(schema.disputes.transactionId, txUuid), eq(schema.disputes.status, 'OPEN')))
       .orderBy(desc(schema.disputes.createdAt))
       .limit(1);
 
@@ -116,7 +118,7 @@ export async function POST(request: NextRequest, { params }: Params) {
 
     // Insert audit log
     await db.insert(schema.auditLogs).values({
-      transactionId: id,
+      transactionId: txUuid,
       userId: user.id,
       actor: user.email,
       event: 'DISPUTE_EVIDENCE_SUBMITTED',
@@ -139,8 +141,9 @@ export async function POST(request: NextRequest, { params }: Params) {
       disputeId: activeDispute?.id || null,
       message: 'Damage and inspection evidence securely catalogued with cryptographic SHA-256 digest.',
     }, { status: 201 });
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error('Evidence POST error:', err);
-    return Response.json({ error: err.message || 'Failed to submit evidence' }, { status: 500 });
+    const msg = err instanceof Error ? err.message : 'Failed to submit evidence';
+    return Response.json({ error: msg }, { status: 500 });
   }
 }

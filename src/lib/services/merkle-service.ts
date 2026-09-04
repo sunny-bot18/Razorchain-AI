@@ -162,13 +162,10 @@ export async function anchorAuditBatch(maxBatchSize = 50) {
  * Returns the cryptographic Merkle Proof for an individual transaction.
  */
 export async function getTransactionMerkleProof(
-  transactionId: string,
+  transactionIdOrNumber: string,
 ): Promise<MerkleProofResult | null> {
-  const [tx] = await db
-    .select()
-    .from(schema.transactions)
-    .where(eq(schema.transactions.id, transactionId))
-    .limit(1);
+  const { findTransactionByIdOrNumber } = await import('@/lib/db/transaction-utils');
+  const tx = await findTransactionByIdOrNumber(transactionIdOrNumber);
 
   if (!tx || !tx.merkleRoot) return null;
 
@@ -204,7 +201,7 @@ export async function getTransactionMerkleProof(
   );
 
   const tree = buildMerkleTree(leaves);
-  const index = batch.transactionIds.indexOf(transactionId);
+  const index = batch.transactionIds.indexOf(tx.id);
   const proof = index >= 0 ? getMerkleProof(tree, index) : [];
   const verified = verifyMerkleProof(leaf, proof, tx.merkleRoot);
 

@@ -3,11 +3,15 @@ import { eq } from 'drizzle-orm';
 import { db } from '@/lib/db';
 import * as schema from '@/lib/db/schema';
 import { canAccessTransaction, getUser } from '@/lib/auth';
+import { ensureDatabaseInitialized } from '@/lib/db/init-db';
+import { findTransactionByIdOrNumber } from '@/lib/db/transaction-utils';
 
 type Params = { params: Promise<{ id: string }> };
 
 export async function POST(request: NextRequest, { params }: Params) {
   try {
+    await ensureDatabaseInitialized();
+
     const user = await getUser(request);
     if (!user) {
       return Response.json({ error: 'Not authenticated' }, { status: 401 });
@@ -17,11 +21,7 @@ export async function POST(request: NextRequest, { params }: Params) {
     const body = await request.json().catch(() => ({}));
     const step = body.step || 1; // 1 = Buyer / Maker, 2 = Seller / Checker
 
-    const [tx] = await db
-      .select()
-      .from(schema.transactions)
-      .where(eq(schema.transactions.id, id))
-      .limit(1);
+    const tx = await findTransactionByIdOrNumber(id);
 
     if (!tx) {
       return Response.json({ error: 'Transaction not found' }, { status: 404 });
@@ -30,6 +30,8 @@ export async function POST(request: NextRequest, { params }: Params) {
     if (!canAccessTransaction(user, tx)) {
       return Response.json({ error: 'Not authorized for this transaction' }, { status: 403 });
     }
+
+    const txUuid = tx.id;
 
     if (step === 1 || !tx.firstApproverId) {
       if (user.role === 'SELLER') {
@@ -44,10 +46,10 @@ export async function POST(request: NextRequest, { params }: Params) {
           firstApprovedAt: new Date(),
           updatedAt: new Date(),
         })
-        .where(eq(schema.transactions.id, id));
+        .where(eq(schema.transactions.id, txUuid));
 
       await db.insert(schema.auditLogs).values({
-        transactionId: id,
+        transactionId: txUuid,
         userId: user.id,
         actor: user.name || user.email,
         event: 'BUYER_MULTISIG_SIGNATURE_RECORDED',
@@ -78,10 +80,10 @@ export async function POST(request: NextRequest, { params }: Params) {
           secondApprovedAt: new Date(),
           updatedAt: new Date(),
         })
-        .where(eq(schema.transactions.id, id));
+        .where(eq(schema.transactions.id, txUuid));
 
       await db.insert(schema.auditLogs).values({
-        transactionId: id,
+        transactionId: txUuid,
         userId: user.id,
         actor: user.name || user.email,
         event: 'SELLER_MULTISIG_SIGNATURE_RECORDED',

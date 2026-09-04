@@ -7,24 +7,23 @@ import { PaymentService } from '@/lib/services/payment-service';
 import { runExecutionCheck } from '@/lib/agents/execution-agent';
 import type { VerificationCheck } from '@/lib/agents/verification-engine';
 import { dispatchWebhook } from '@/lib/services/webhook-service';
+import { ensureDatabaseInitialized } from '@/lib/db/init-db';
+import { findTransactionByIdOrNumber } from '@/lib/db/transaction-utils';
 
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    await ensureDatabaseInitialized();
+
     const user = await getUser(request);
     if (!user) {
       return Response.json({ error: 'Not authenticated' }, { status: 401 });
     }
 
     const { id } = await params;
-
-    const [transaction] = await db
-      .select()
-      .from(schema.transactions)
-      .where(eq(schema.transactions.id, id))
-      .limit(1);
+    const transaction = await findTransactionByIdOrNumber(id);
 
     if (!transaction) {
       return Response.json({ error: 'Transaction not found' }, { status: 404 });
@@ -36,28 +35,30 @@ export async function POST(
       return Response.json({ error: `Settlement is not available while transaction is ${transaction.status}` }, { status: 409 });
     }
 
+    const txUuid = transaction.id;
+
     let [verificationResult] = await db
       .select()
       .from(schema.verificationResults)
-      .where(eq(schema.verificationResults.transactionId, id))
+      .where(eq(schema.verificationResults.transactionId, txUuid))
       .limit(1);
 
     let [securityCheck] = await db
       .select()
       .from(schema.securityChecks)
-      .where(eq(schema.securityChecks.transactionId, id))
+      .where(eq(schema.securityChecks.transactionId, txUuid))
       .limit(1);
 
     let [reservation] = await db
       .select()
       .from(schema.paymentReservations)
-      .where(eq(schema.paymentReservations.transactionId, id))
+      .where(eq(schema.paymentReservations.transactionId, txUuid))
       .limit(1);
 
     const [existingExecution] = await db
       .select()
       .from(schema.paymentExecutions)
-      .where(eq(schema.paymentExecutions.transactionId, id))
+      .where(eq(schema.paymentExecutions.transactionId, txUuid))
       .limit(1);
 
     // A successful admin resolution is an explicit, auditable human override
@@ -67,7 +68,7 @@ export async function POST(
       .select({ id: schema.auditLogs.id })
       .from(schema.auditLogs)
       .where(and(
-        eq(schema.auditLogs.transactionId, id),
+        eq(schema.auditLogs.transactionId, txUuid),
         eq(schema.auditLogs.event, 'MANUAL_REVIEW_RESOLVED'),
         eq(schema.auditLogs.result, 'SUCCESS'),
       ))
@@ -84,7 +85,7 @@ export async function POST(
     // Auto-heal verified transaction records if created through admin or test flows
     if (!verificationResult && transaction.status === 'VERIFIED') {
       const [newVr] = await db.insert(schema.verificationResults).values({
-        transactionId: id,
+        transactionId: txUuid,
         status: 'APPROVED',
         confidence: 0.98,
         checks: [
@@ -102,7 +103,7 @@ export async function POST(
 
     if (!securityCheck && transaction.status === 'VERIFIED') {
       const [newSc] = await db.insert(schema.securityChecks).values({
-        transactionId: id,
+        transactionId: txUuid,
         riskScore: 0.05,
         status: 'SAFE',
         flags: [],
@@ -113,14 +114,14 @@ export async function POST(
 
     if (!reservation) {
       const [newRes] = await db.insert(schema.paymentReservations).values({
-        transactionId: id,
-        razorpayOrderId: `order_${id.slice(0, 8)}`,
-        razorpayPaymentId: `pay_${id.slice(0, 8)}`,
+        transactionId: txUuid,
+        razorpayOrderId: `order_${txUuid.slice(0, 8)}`,
+        razorpayPaymentId: `pay_${txUuid.slice(0, 8)}`,
         amount: transaction.amount,
         currency: transaction.currency || 'INR',
         status: 'AUTHORIZED',
         isSimulated: true,
-        idempotencyKey: `exec-res-${id}-${Date.now()}`,
+        idempotencyKey: `exec-res-${txUuid}-${Date.now()}`,
       }).returning();
       reservation = newRes;
     }
@@ -199,10 +200,10 @@ export async function POST(
             firstApprovedAt: new Date(),
             updatedAt: new Date(),
           })
-          .where(eq(schema.transactions.id, id));
+          .where(eq(schema.transactions.id, txUuid));
 
         await db.insert(schema.auditLogs).values({
-          transactionId: id,
+          transactionId: txUuid,
           userId: user.id,
           actor: user.email,
           event: 'MAKER_APPROVAL_RECORDED',
@@ -233,10 +234,10 @@ export async function POST(
             secondApprovedAt: new Date(),
             updatedAt: new Date(),
           })
-          .where(eq(schema.transactions.id, id));
+          .where(eq(schema.transactions.id, txUuid));
 
         await db.insert(schema.auditLogs).values({
-          transactionId: id,
+          transactionId: txUuid,
           userId: user.id,
           actor: user.email,
           event: 'CHECKER_APPROVAL_RECORDED',
@@ -269,7 +270,7 @@ export async function POST(
 
     // Use PaymentService to capture payment
     const paymentService = new PaymentService();
-    const idempotencyKey = `execute-${id}-${Date.now()}`;
+    const idempotencyKey = `execute-${txUuid}-${Date.now()}`;
 
     const captureResult = await paymentService.capturePayment(
       reservation?.razorpayPaymentId || 'mock_payment',
@@ -281,7 +282,7 @@ export async function POST(
     const [paymentExecution] = await db
       .insert(schema.paymentExecutions)
       .values({
-        transactionId: id,
+        transactionId: txUuid,
         idempotencyKey,
         action: 'CAPTURE',
         amount: finalCaptureAmount,
@@ -297,10 +298,10 @@ export async function POST(
       await db
         .update(schema.transactions)
         .set({ status: newStatus, updatedAt: now })
-        .where(eq(schema.transactions.id, id));
+        .where(eq(schema.transactions.id, txUuid));
 
       await db.insert(schema.auditLogs).values({
-        transactionId: id,
+        transactionId: txUuid,
         userId: user.id,
         actor: user.email,
         event: `Transaction status changed to ${newStatus}`,
@@ -311,7 +312,7 @@ export async function POST(
     }
 
     await db.insert(schema.auditLogs).values({
-      transactionId: id,
+      transactionId: txUuid,
       userId: user.id,
       actor: user.email,
       event: 'Payment captured and settled',
@@ -319,7 +320,7 @@ export async function POST(
       result: captureResult.status,
       metadata: { idempotencyKey, amount: transaction.amount, humanOverride: Boolean(humanOverride) },
     });
-    void dispatchWebhook(id, 'PAYMENT_SETTLED', { status: 'SETTLED', amount: transaction.amount, paymentId: captureResult.id, humanOverride: Boolean(humanOverride) }, [transaction.buyerId, transaction.sellerId]);
+    void dispatchWebhook(txUuid, 'PAYMENT_SETTLED', { status: 'SETTLED', amount: transaction.amount, paymentId: captureResult.id, humanOverride: Boolean(humanOverride) }, [transaction.buyerId, transaction.sellerId]);
 
     return Response.json({
       execution: paymentExecution,
