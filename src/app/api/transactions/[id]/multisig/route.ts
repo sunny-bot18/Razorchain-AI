@@ -32,6 +32,9 @@ export async function POST(request: NextRequest, { params }: Params) {
     }
 
     if (step === 1 || !tx.firstApproverId) {
+      if (user.role === 'SELLER') {
+        return Response.json({ error: 'Only the Buyer can authorize initial release (Step 1)' }, { status: 403 });
+      }
       // Step 1: Buyer / Maker Signature
       await db
         .update(schema.transactions)
@@ -64,12 +67,10 @@ export async function POST(request: NextRequest, { params }: Params) {
         message: '1st signature recorded (Buyer Release Authorization). Awaiting 2nd counterparty signature.',
       });
     } else {
-      // Step 2: Seller / Checker Signature
-      if (tx.firstApproverId === user.id && user.role !== 'ADMIN') {
-        // Enforce distinct counterparty (unless Admin testing)
-        // For smooth demo testing, let's allow co-signing or notify
+      if (user.role === 'BUYER') {
+        return Response.json({ error: 'Only the Seller counterparty can sign settlement acceptance (Step 2)' }, { status: 403 });
       }
-
+      // Step 2: Seller / Checker Signature
       await db
         .update(schema.transactions)
         .set({

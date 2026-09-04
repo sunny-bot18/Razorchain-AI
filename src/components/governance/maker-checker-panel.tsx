@@ -243,24 +243,31 @@ export function MakerCheckerPanel({
             )
           ) : /* Case 2: Buyer Signed, Seller Pending */
           !hasSellerSignature ? (
-            <div className="flex flex-wrap items-center justify-between gap-3 w-full">
-              <div className="flex items-center gap-2 text-zinc-300">
-                <CheckCircle2 className="h-4 w-4 text-blue-400" />
-                <span>
-                  1st signature (Buyer) verified. Ready for 2nd signature (<strong>Seller</strong>).
-                </span>
+            isSeller || isAdmin ? (
+              <div className="flex flex-wrap items-center justify-between gap-3 w-full">
+                <div className="flex items-center gap-2 text-zinc-300">
+                  <CheckCircle2 className="h-4 w-4 text-blue-400" />
+                  <span>
+                    1st signature (Buyer) verified. Ready for 2nd signature (<strong>Seller</strong>).
+                  </span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    disabled={isLoading}
+                    onClick={() => onApproveSignature(2)}
+                    className="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 font-bold text-white shadow-lg shadow-emerald-500/25 hover:bg-emerald-500 transition-colors disabled:opacity-50 cursor-pointer"
+                  >
+                    {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <ShieldCheck className="h-4 w-4" />}
+                    Sign as Seller (2 of 2)
+                  </button>
+                </div>
               </div>
-              <div className="flex items-center gap-2">
-                <button
-                  disabled={isLoading}
-                  onClick={() => onApproveSignature(2)}
-                  className="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 font-bold text-white shadow-lg shadow-emerald-500/25 hover:bg-emerald-500 transition-colors disabled:opacity-50 cursor-pointer"
-                >
-                  {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <ShieldCheck className="h-4 w-4" />}
-                  Sign as Seller (2 of 2)
-                </button>
+            ) : (
+              <div className="flex items-center gap-2 text-zinc-400 w-full">
+                <Clock className="h-4 w-4 text-amber-400" />
+                <span>1st signature (Buyer) verified. Awaiting Seller counterparty acceptance signature.</span>
               </div>
-            </div>
+            )
           ) : (
             /* Case 3: Both Signed */
             <div className="flex items-center gap-2 text-emerald-400">
