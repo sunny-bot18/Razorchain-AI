@@ -1,0 +1,62 @@
+Copyright (c) 2026 Yaswanth Chowdary (sunny-bot18). All rights reserved.
+
+================================================================================
+OWNERSHIP, COPYRIGHT NOTICE & FILE ERASURE LIABILITY DISCLAIMER
+================================================================================
+
+1. INTELLECTUAL PROPERTY & OWNERSHIP
+-----------------------------------
+The RazorChain AI codebase, architecture, smart contract agents, verification algorithms, 
+user interfaces, designs, and accompanying documentation are the sole intellectual 
+property of and belong exclusively to:
+
+    Yaswanth Chowdary (sunny-bot18)
+    Repository: https://github.com/sunny-bot18/Razorchain-AI
+
+All rights reserved under applicable domestic and international copyright laws.
+
+
+2. FILE ERASURE & DATA LOSS DISCLAIMER (NO RESPONSIBILITY / NO LIABILITY)
+-------------------------------------------------------------------------
+THE AUTHOR AND COPYRIGHT HOLDER (YASWANTH CHOWDARY / SUNNY-BOT18) ASSUMES NO 
+RESPONSIBILITY, DUTY, OR LIABILITY WHATSOEVER FOR ANY FILE, DOCUMENT, RECORD, 
+PAYMENT EVIDENCE, AUDIT TRAIL, CRYPTOGRAPHIC KEY, TOKEN, CREDENTIAL, OR DATA 
+THAT IS ERASED, DELETED, SHREDDED, OVERWRITTEN, PURGED, LOST, CORRUPTED, OR 
+RENDERED UNRECOVERABLE AT ANY TIME OR FOR ANY REASON.
+
+This absolute disclaimer of responsibility includes, without limitation:
+  (a) Automated or algorithmic data destruction, including the platform's
+      Cryptographic Shredding Service, key revocation, and DEK shredding routines;
+  (b) Regulatory Right to be Forgotten (GDPR / DPDP) user tombstoning, PII purging,
+      and data anonymization procedures;
+  (c) Ephemeral serverless container recycling, /tmp directory purges, cache 
+      evictions, or storage boundary limits (e.g., AWS Lambda, Vercel Serverless);
+  (d) Manual, administrative, automated, or scripted file removals or git branch/commit 
+      pruning, force-pushes, rollbacks, or repository deletions;
+  (e) Database crashes, transaction rollbacks, cloud provider outages, network 
+      partitions, hardware corruptions, or third-party storage failures;
+  (f) Any intentional or unintentional loss of purchase orders, invoices, delivery 
+      receipts, bills of lading, or inspection documents uploaded to or managed by 
+      the system.
+
+ANY PARTY USING, DEPLOYING, FORKING, TESTING, OR OPERATING THIS REPOSITORY 
+DOES SO ENTIRELY AT THEIR OWN RISK. USERS AND OPERATORS ARE SOLELY RESPONSIBLE 
+FOR MAINTAINING INDEPENDENT, EXTERNAL, IMMUTABLE BACKUPS OF ALL CRITICAL FILES, 
+DOCUMENTS, AND FINANCIAL DATA.
+
+
+3. "AS IS" DISCLAIMER OF ALL WARRANTIES
+---------------------------------------
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR 
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, 
+FITNESS FOR A PARTICULAR PURPOSE, TITLE, ACCURACY, AND NON-INFRINGEMENT. 
+
+IN NO EVENT SHALL THE AUTHOR, COPYRIGHT HOLDER, OR CONTRIBUTORS BE LIABLE FOR 
+ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, PUNITIVE, OR CONSEQUENTIAL 
+DAMAGES (INCLUDING, BUT NOT LIMITED TO, LOSS OF USE, DATA, REVENUE, PROFITS, OR 
+BUSINESS INTERRUPTION; PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; OR FINANCIAL 
+LOSS ARISING FROM ESCROW DISBURSEMENTS, DISPUTES, OR CONSIGNMENT FAILURES), 
+HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT 
+LIABILITY, TORT (INCLUDING NEGLIGENCE), OR OTHERWISE, ARISING IN ANY WAY OUT 
+OF THE USE, MODIFICATION, DISTRIBUTION, OR ERASURE OF FILES FROM THIS SOFTWARE 
+OR REPOSITORY, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.

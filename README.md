@@ -174,6 +174,23 @@ npm run build
 
 ---
 
-## 📄 License
+## ⚖️ Copyright & Disclaimer of Liability
 
-MIT © [RazorChain AI](https://github.com/sunny-bot18/Razorchain-AI)
+**Copyright © 2026 Yaswanth Chowdary ([@sunny-bot18](https://github.com/sunny-bot18)). All Rights Reserved.**
+
+### Ownership Notice
+All source code, architectures, software designs, multi-agent frameworks, smart contracts, and intellectual property in this repository belong exclusively to **Yaswanth Chowdary** ([sunny-bot18/Razorchain-AI](https://github.com/sunny-bot18/Razorchain-AI)).
+
+### Data Loss & File Erasure Disclaimer
+> [!IMPORTANT]
+> **NO RESPONSIBILITY FOR ERASED OR DELETED FILES**: The author and copyright holder (**Yaswanth Chowdary**) assumes **no responsibility, obligation, or liability** for any files, documents, records, encryption keys, media, or data that are erased, shredded, deleted, overwritten, purged, or lost from this Git repository, cloud databases, serverless `/tmp` storage, or deployed instances.
+> 
+> This includes, but is not limited to:
+> - Automated data destruction via the platform's **Cryptographic Shredding Service** or key revocation routines.
+> - Regulatory **Right to be Forgotten (GDPR / DPDP)** user tombstoning and PII purges.
+> - Serverless container lifecycle resets, cache evictions, or storage boundary limits.
+> - Manual, scripted, or administrative file deletions, commit pruning, or database resets.
+>
+> All software is provided strictly on an **"AS IS"** basis without warranty of any kind. Users and deploying entities are solely responsible for maintaining external, immutable backups of their files and data.
+
+For complete terms and legal provisions, refer to the full [LICENSE](LICENSE) file.
