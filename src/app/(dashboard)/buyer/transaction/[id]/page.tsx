@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState, useMemo } from 'react';
 import { useRouter, useParams } from 'next/navigation';
+import Link from 'next/link';
 import {
   Loader2, FileText, CheckCircle2, XCircle, AlertTriangle, ShieldAlert, ShieldCheck,
   CreditCard, Clock, MapPin, Package, Building2, User as UserIcon, Hash, IndianRupee,
@@ -656,9 +657,9 @@ export default function BuyerTransactionDetail() {
     <div className="rounded-xl border border-red-500/30 bg-red-500/10 p-6 text-sm text-red-300 space-y-3">
       <p className="font-bold">Transaction Unavailable</p>
       <p className="text-xs">{error || 'Transaction data could not be retrieved.'}</p>
-      <button onClick={() => router.back()} className="text-xs text-zinc-400 hover:text-white underline">
+      <Link href="/buyer" className="inline-block text-xs text-zinc-400 hover:text-white underline">
         ← Return to dashboard
-      </button>
+      </Link>
     </div>
   );
 

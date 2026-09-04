@@ -16,10 +16,12 @@ export async function GET(
 
     const { id } = await params;
 
+    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
+
     const [transaction] = await db
       .select()
       .from(schema.transactions)
-      .where(eq(schema.transactions.id, id))
+      .where(isUuid ? eq(schema.transactions.id, id) : eq(schema.transactions.transactionNumber, id))
       .limit(1);
 
     if (!transaction) {
@@ -28,6 +30,8 @@ export async function GET(
     if (!canAccessTransaction(user, transaction)) {
       return Response.json({ error: 'Not authorized for this transaction' }, { status: 403 });
     }
+
+    const txUuid = transaction.id;
 
     // Fetch all related data in parallel
     const [
@@ -42,16 +46,16 @@ export async function GET(
       milestones,
       pledges,
     ] = await Promise.all([
-      db.select().from(schema.contracts).where(eq(schema.contracts.transactionId, id)).limit(1),
-      db.select().from(schema.paymentReservations).where(eq(schema.paymentReservations.transactionId, id)).limit(1),
-      db.select().from(schema.documents).where(eq(schema.documents.transactionId, id)),
-      db.select().from(schema.verificationResults).where(eq(schema.verificationResults.transactionId, id)).limit(1),
-      db.select().from(schema.securityChecks).where(eq(schema.securityChecks.transactionId, id)).limit(1),
-      db.select().from(schema.paymentExecutions).where(eq(schema.paymentExecutions.transactionId, id)).limit(1),
-      db.select().from(schema.agentRuns).where(eq(schema.agentRuns.transactionId, id)),
-      db.select().from(schema.auditLogs).where(eq(schema.auditLogs.transactionId, id)),
-      db.select().from(schema.paymentMilestones).where(eq(schema.paymentMilestones.transactionId, id)).orderBy(schema.paymentMilestones.sequence),
-      db.select().from(schema.tradeCreditPledges).where(eq(schema.tradeCreditPledges.transactionId, id)),
+      db.select().from(schema.contracts).where(eq(schema.contracts.transactionId, txUuid)).limit(1),
+      db.select().from(schema.paymentReservations).where(eq(schema.paymentReservations.transactionId, txUuid)).limit(1),
+      db.select().from(schema.documents).where(eq(schema.documents.transactionId, txUuid)),
+      db.select().from(schema.verificationResults).where(eq(schema.verificationResults.transactionId, txUuid)).limit(1),
+      db.select().from(schema.securityChecks).where(eq(schema.securityChecks.transactionId, txUuid)).limit(1),
+      db.select().from(schema.paymentExecutions).where(eq(schema.paymentExecutions.transactionId, txUuid)).limit(1),
+      db.select().from(schema.agentRuns).where(eq(schema.agentRuns.transactionId, txUuid)),
+      db.select().from(schema.auditLogs).where(eq(schema.auditLogs.transactionId, txUuid)),
+      db.select().from(schema.paymentMilestones).where(eq(schema.paymentMilestones.transactionId, txUuid)).orderBy(schema.paymentMilestones.sequence),
+      db.select().from(schema.tradeCreditPledges).where(eq(schema.tradeCreditPledges.transactionId, txUuid)),
     ]);
 
     // Fetch messages with sender info
@@ -68,7 +72,7 @@ export async function GET(
       })
       .from(schema.transactionMessages)
       .leftJoin(schema.users, eq(schema.transactionMessages.userId, schema.users.id))
-      .where(eq(schema.transactionMessages.transactionId, id))
+      .where(eq(schema.transactionMessages.transactionId, txUuid))
       .orderBy(schema.transactionMessages.createdAt);
 
     // Fetch buyer, seller, and approver details
