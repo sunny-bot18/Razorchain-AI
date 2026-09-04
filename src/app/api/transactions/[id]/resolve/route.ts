@@ -4,6 +4,8 @@ import { z } from 'zod';
 import { db } from '@/lib/db';
 import * as schema from '@/lib/db/schema';
 import { getUser } from '@/lib/auth';
+import { ensureDatabaseInitialized } from '@/lib/db/init-db';
+import { findTransactionByIdOrNumber } from '@/lib/db/transaction-utils';
 
 const resolutionSchema = z.object({
   decision: z.enum(['APPROVED', 'REJECTED']),
@@ -13,22 +15,26 @@ const resolutionSchema = z.object({
 /** Records a human override for a manual-review or failed AI decision. */
 export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
+    await ensureDatabaseInitialized();
+
     const user = await getUser(request);
     if (!user) return Response.json({ error: 'Not authenticated' }, { status: 401 });
     if (user.role !== 'ADMIN') return Response.json({ error: 'Only administrators can resolve manual reviews' }, { status: 403 });
     const body = resolutionSchema.safeParse(await request.json().catch(() => ({})));
     if (!body.success) return Response.json({ error: 'A decision and a non-empty reason are required' }, { status: 400 });
     const { id } = await params;
-    const [transaction] = await db.select().from(schema.transactions).where(eq(schema.transactions.id, id)).limit(1);
+    const transaction = await findTransactionByIdOrNumber(id);
     if (!transaction) return Response.json({ error: 'Transaction not found' }, { status: 404 });
     if (!['MANUAL_REVIEW', 'VERIFICATION_FAILED', 'DISPUTED'].includes(transaction.status)) {
       return Response.json({ error: `Admin resolution is not available while transaction is ${transaction.status}` }, { status: 409 });
     }
 
+    const txUuid = transaction.id;
+
     const [reservation] = await db
       .select()
       .from(schema.paymentReservations)
-      .where(eq(schema.paymentReservations.transactionId, id))
+      .where(eq(schema.paymentReservations.transactionId, txUuid))
       .limit(1);
 
     let nextStatus: (typeof schema.transactionStatusEnum.enumValues)[number];
@@ -41,18 +47,18 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
         await db
           .update(schema.paymentReservations)
           .set({ status: 'refund_requested', updatedAt: new Date() })
-          .where(eq(schema.paymentReservations.transactionId, id));
+          .where(eq(schema.paymentReservations.transactionId, txUuid));
       }
     }
 
-    await db.update(schema.transactions).set({ status: nextStatus, updatedAt: new Date() }).where(eq(schema.transactions.id, id));
+    await db.update(schema.transactions).set({ status: nextStatus, updatedAt: new Date() }).where(eq(schema.transactions.id, txUuid));
     await db.update(schema.verificationResults).set({
       status: body.data.decision,
       reason: `${body.data.reason} (human override by ${user.email})`,
       updatedAt: new Date(),
-    }).where(eq(schema.verificationResults.transactionId, id));
+    }).where(eq(schema.verificationResults.transactionId, txUuid));
     await db.insert(schema.auditLogs).values({
-      transactionId: id,
+      transactionId: txUuid,
       userId: user.id,
       actor: user.email,
       event: nextStatus === 'REFUNDED' ? 'REFUND_REQUESTED' : 'MANUAL_REVIEW_RESOLVED',

@@ -3,23 +3,23 @@ import { eq } from "drizzle-orm";
 import { db } from "@/lib/db";
 import * as schema from "@/lib/db/schema";
 import { getUser } from "@/lib/auth";
+import { ensureDatabaseInitialized } from "@/lib/db/init-db";
+import { findTransactionByIdOrNumber } from "@/lib/db/transaction-utils";
 
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    await ensureDatabaseInitialized();
+
     const user = await getUser(request);
     if (!user) {
       return Response.json({ error: "Not authenticated" }, { status: 401 });
     }
 
     const { id } = await params;
-    const [transaction] = await db
-      .select()
-      .from(schema.transactions)
-      .where(eq(schema.transactions.id, id))
-      .limit(1);
+    const transaction = await findTransactionByIdOrNumber(id);
 
     if (!transaction) {
       return Response.json({ error: "Transaction not found" }, { status: 404 });
@@ -31,6 +31,8 @@ export async function POST(
         { status: 403 }
       );
     }
+
+    const txUuid = transaction.id;
 
     const body = await request.json();
     const { signatoryName, gpsCoordinates, documentName, notes } = body;
@@ -59,18 +61,18 @@ export async function POST(
         status: nextStatus,
         updatedAt: new Date(),
       })
-      .where(eq(schema.transactions.id, id));
+      .where(eq(schema.transactions.id, txUuid));
 
     // 2. Insert cryptographic Audit Log with signed GPS stamp payload
     await db.insert(schema.auditLogs).values({
-      transactionId: id,
+      transactionId: txUuid,
       userId: user.id,
       actor: user.email,
       event: "CONSIGNEE_POD_ATTESTED",
       action: "MANUAL_CONSIGNEE_ATTESTATION",
       result: "SUCCESS",
       metadata: {
-        orderId: id,
+        orderId: txUuid,
         transactionNumber: transaction.transactionNumber,
         signatory: signatoryName,
         gpsStamp: {

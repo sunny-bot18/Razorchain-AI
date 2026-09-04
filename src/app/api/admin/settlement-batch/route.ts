@@ -1,13 +1,17 @@
 import { type NextRequest } from "next/server";
-import { eq, inArray } from "drizzle-orm";
+import { eq, inArray, or } from "drizzle-orm";
 import { db } from "@/lib/db";
 import * as schema from "@/lib/db/schema";
 import { getUser } from "@/lib/auth";
 import { PaymentService } from "@/lib/services/payment-service";
 import { createHash } from "crypto";
+import { ensureDatabaseInitialized } from "@/lib/db/init-db";
+import { isUuid } from "@/lib/db/transaction-utils";
 
 export async function GET(request: NextRequest) {
   try {
+    await ensureDatabaseInitialized();
+
     const user = await getUser(request);
     if (!user) {
       return Response.json({ error: "Not authenticated" }, { status: 401 });
@@ -44,6 +48,8 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
+    await ensureDatabaseInitialized();
+
     const user = await getUser(request);
     if (!user) {
       return Response.json({ error: "Not authenticated" }, { status: 401 });
@@ -56,14 +62,25 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json().catch(() => ({}));
-    const { orderIds, batchWindow } = body;
+    const rawIds = body.orderIds || body.transactionIds;
+    const { batchWindow } = body;
 
-    let targetTransactions;
-    if (Array.isArray(orderIds) && orderIds.length > 0) {
-      targetTransactions = await db
-        .select()
-        .from(schema.transactions)
-        .where(inArray(schema.transactions.id, orderIds));
+    let targetTransactions: Array<typeof schema.transactions.$inferSelect> = [];
+    if (Array.isArray(rawIds) && rawIds.length > 0) {
+      const uuids = rawIds.filter((id: unknown): id is string => typeof id === "string" && isUuid(id));
+      const txNumbers = rawIds.filter((id: unknown): id is string => typeof id === "string" && !isUuid(id));
+      const conditions = [];
+      if (uuids.length > 0) conditions.push(inArray(schema.transactions.id, uuids));
+      if (txNumbers.length > 0) conditions.push(inArray(schema.transactions.transactionNumber, txNumbers));
+
+      if (conditions.length > 0) {
+        targetTransactions = await db
+          .select()
+          .from(schema.transactions)
+          .where(conditions.length === 1 ? conditions[0] : or(...conditions));
+      } else {
+        targetTransactions = [];
+      }
     } else {
       targetTransactions = await db
         .select()
