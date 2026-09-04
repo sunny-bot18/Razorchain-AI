@@ -52,6 +52,30 @@ export default function LoginPage() {
     }
   };
 
+  const [seeding, setSeeding] = useState(false);
+  const [seedSuccess, setSeedSuccess] = useState<string | null>(null);
+
+  const handleSeedDatabase = async () => {
+    setSeeding(true);
+    setError(null);
+    setSeedSuccess(null);
+    try {
+      const res = await fetch('/api/seed', { method: 'POST' });
+      if (!res.ok) {
+        throw new Error('Failed to seed database');
+      }
+      const data = await res.json();
+      setSeedSuccess(data.message || 'Database initialized & seeded with demo users!');
+      setEmail('buyer@demo.com');
+      setPassword('password123');
+      if (mode === 'register') setMode('login');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Database initialization failed');
+    } finally {
+      setSeeding(false);
+    }
+  };
+
   const inputClass =
     'w-full rounded-lg border border-zinc-700 bg-zinc-800 px-3 py-2 text-sm text-zinc-100 placeholder-zinc-500 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500';
 
@@ -80,6 +104,7 @@ export default function LoginPage() {
               onClick={() => {
                 setMode(m);
                 setError(null);
+                setSeedSuccess(null);
               }}
               className={`rounded-md px-3 py-1.5 font-medium capitalize transition-colors ${
                 mode === m
@@ -151,14 +176,28 @@ export default function LoginPage() {
           </div>
 
           {error && (
-            <p className="rounded-md border border-red-500/30 bg-red-500/10 px-3 py-2 text-xs text-red-300">
-              {error}
+            <div className="rounded-md border border-red-500/30 bg-red-500/10 p-3 text-xs text-red-300 space-y-2">
+              <p>{error}</p>
+              <button
+                type="button"
+                onClick={handleSeedDatabase}
+                disabled={seeding}
+                className="w-full rounded bg-red-500/20 hover:bg-red-500/30 text-red-200 font-medium py-1.5 transition-colors border border-red-500/40"
+              >
+                {seeding ? 'Initializing database…' : '⚡ Initialize & Seed Fresh Database Now'}
+              </button>
+            </div>
+          )}
+
+          {seedSuccess && (
+            <p className="rounded-md border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-xs text-emerald-300">
+              ✓ {seedSuccess}
             </p>
           )}
 
           <button
             type="submit"
-            disabled={loading}
+            disabled={loading || seeding}
             className="w-full rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white shadow-lg shadow-blue-500/25 transition-colors hover:bg-blue-500 disabled:cursor-not-allowed disabled:opacity-60"
           >
             {loading ? (
@@ -175,9 +214,19 @@ export default function LoginPage() {
         </form>
 
         <div className="mt-6 rounded-lg border border-zinc-800 bg-zinc-950/60 p-3">
-          <p className="mb-2 text-xs font-medium text-zinc-400">
-            Demo credentials ({'password123'}):
-          </p>
+          <div className="flex items-center justify-between mb-2">
+            <p className="text-xs font-medium text-zinc-400">
+              Demo credentials (password123):
+            </p>
+            <button
+              type="button"
+              onClick={handleSeedDatabase}
+              disabled={seeding}
+              className="text-[11px] text-blue-400 hover:text-blue-300 underline disabled:opacity-50"
+            >
+              {seeding ? 'Seeding…' : '⚡ Auto-Seed DB'}
+            </button>
+          </div>
           <div className="flex flex-wrap gap-2">
             {DEMO_CREDENTIALS.map((c) => (
               <button
