@@ -4,11 +4,13 @@ import { eq } from 'drizzle-orm';
 import { db } from '@/lib/db';
 import * as schema from '@/lib/db/schema';
 import { signToken, getUser } from '@/lib/auth';
+import { ensureDatabaseInitialized } from '@/lib/db/init-db';
 
 const SALT_ROUNDS = 10;
 
 export async function GET(request: NextRequest) {
   try {
+    await ensureDatabaseInitialized();
     const user = await getUser(request);
     if (!user) {
       return Response.json({ error: 'Not authenticated' }, { status: 401 });
@@ -22,6 +24,7 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
+    await ensureDatabaseInitialized();
     const body = await request.json();
     const { email, password, action, name, company } = body;
 

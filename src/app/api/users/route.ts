@@ -3,9 +3,11 @@ import { asc, eq } from 'drizzle-orm';
 import { db } from '@/lib/db';
 import * as schema from '@/lib/db/schema';
 import { getUser } from '@/lib/auth';
+import { ensureDatabaseInitialized } from '@/lib/db/init-db';
 
 export async function GET(request: NextRequest) {
   try {
+    await ensureDatabaseInitialized();
     const user = await getUser(request);
     if (!user) {
       return Response.json({ error: 'Not authenticated' }, { status: 401 });

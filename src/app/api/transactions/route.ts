@@ -10,6 +10,7 @@ import { screenSanctions } from '@/lib/services/kyb-service';
 import { dispatchWebhook } from '@/lib/services/webhook-service';
 import { scryAgent } from '@/lib/agents/scry-agent';
 import { lockCrossBorderFx } from '@/lib/services/fx-hedge-service';
+import { ensureDatabaseInitialized } from '@/lib/db/init-db';
 
 const createTransactionSchema = z.object({
   sellerId: z.string().uuid(),
@@ -25,6 +26,7 @@ const createTransactionSchema = z.object({
 
 export async function GET(request: NextRequest) {
   try {
+    await ensureDatabaseInitialized();
     const user = await getUser(request);
     if (!user) {
       return Response.json({ error: 'Not authenticated' }, { status: 401 });
@@ -160,6 +162,7 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
+    await ensureDatabaseInitialized();
     const user = await getUser(request);
     if (!user) {
       return Response.json({ error: 'Not authenticated' }, { status: 401 });

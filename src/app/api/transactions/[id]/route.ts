@@ -3,12 +3,15 @@ import { eq, inArray } from 'drizzle-orm';
 import { db } from '@/lib/db';
 import * as schema from '@/lib/db/schema';
 import { canAccessTransaction, getUser } from '@/lib/auth';
+import { ensureDatabaseInitialized } from '@/lib/db/init-db';
 
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    await ensureDatabaseInitialized();
+
     const user = await getUser(request);
     if (!user) {
       return Response.json({ error: 'Not authenticated' }, { status: 401 });
@@ -33,7 +36,7 @@ export async function GET(
 
     const txUuid = transaction.id;
 
-    // Fetch all related data in parallel
+    // Fetch all related data in parallel with resilient fallbacks
     const [
       contract,
       paymentReservation,
@@ -46,34 +49,40 @@ export async function GET(
       milestones,
       pledges,
     ] = await Promise.all([
-      db.select().from(schema.contracts).where(eq(schema.contracts.transactionId, txUuid)).limit(1),
-      db.select().from(schema.paymentReservations).where(eq(schema.paymentReservations.transactionId, txUuid)).limit(1),
-      db.select().from(schema.documents).where(eq(schema.documents.transactionId, txUuid)),
-      db.select().from(schema.verificationResults).where(eq(schema.verificationResults.transactionId, txUuid)).limit(1),
-      db.select().from(schema.securityChecks).where(eq(schema.securityChecks.transactionId, txUuid)).limit(1),
-      db.select().from(schema.paymentExecutions).where(eq(schema.paymentExecutions.transactionId, txUuid)).limit(1),
-      db.select().from(schema.agentRuns).where(eq(schema.agentRuns.transactionId, txUuid)),
-      db.select().from(schema.auditLogs).where(eq(schema.auditLogs.transactionId, txUuid)),
-      db.select().from(schema.paymentMilestones).where(eq(schema.paymentMilestones.transactionId, txUuid)).orderBy(schema.paymentMilestones.sequence),
-      db.select().from(schema.tradeCreditPledges).where(eq(schema.tradeCreditPledges.transactionId, txUuid)),
+      db.select().from(schema.contracts).where(eq(schema.contracts.transactionId, txUuid)).limit(1).catch(() => []),
+      db.select().from(schema.paymentReservations).where(eq(schema.paymentReservations.transactionId, txUuid)).limit(1).catch(() => []),
+      db.select().from(schema.documents).where(eq(schema.documents.transactionId, txUuid)).catch(() => []),
+      db.select().from(schema.verificationResults).where(eq(schema.verificationResults.transactionId, txUuid)).limit(1).catch(() => []),
+      db.select().from(schema.securityChecks).where(eq(schema.securityChecks.transactionId, txUuid)).limit(1).catch(() => []),
+      db.select().from(schema.paymentExecutions).where(eq(schema.paymentExecutions.transactionId, txUuid)).limit(1).catch(() => []),
+      db.select().from(schema.agentRuns).where(eq(schema.agentRuns.transactionId, txUuid)).catch(() => []),
+      db.select().from(schema.auditLogs).where(eq(schema.auditLogs.transactionId, txUuid)).catch(() => []),
+      db.select().from(schema.paymentMilestones).where(eq(schema.paymentMilestones.transactionId, txUuid)).orderBy(schema.paymentMilestones.sequence).catch(() => []),
+      db.select().from(schema.tradeCreditPledges).where(eq(schema.tradeCreditPledges.transactionId, txUuid)).catch(() => []),
     ]);
 
     // Fetch messages with sender info
-    const messages = await db
-      .select({
-        id: schema.transactionMessages.id,
-        transactionId: schema.transactionMessages.transactionId,
-        userId: schema.transactionMessages.userId,
-        flaggedCheck: schema.transactionMessages.flaggedCheck,
-        body: schema.transactionMessages.body,
-        createdAt: schema.transactionMessages.createdAt,
-        senderName: schema.users.name,
-        senderRole: schema.users.role,
-      })
-      .from(schema.transactionMessages)
-      .leftJoin(schema.users, eq(schema.transactionMessages.userId, schema.users.id))
-      .where(eq(schema.transactionMessages.transactionId, txUuid))
-      .orderBy(schema.transactionMessages.createdAt);
+    let messages: any[] = [];
+    try {
+      messages = await db
+        .select({
+          id: schema.transactionMessages.id,
+          transactionId: schema.transactionMessages.transactionId,
+          userId: schema.transactionMessages.userId,
+          flaggedCheck: schema.transactionMessages.flaggedCheck,
+          body: schema.transactionMessages.body,
+          createdAt: schema.transactionMessages.createdAt,
+          senderName: schema.users.name,
+          senderRole: schema.users.role,
+        })
+        .from(schema.transactionMessages)
+        .leftJoin(schema.users, eq(schema.transactionMessages.userId, schema.users.id))
+        .where(eq(schema.transactionMessages.transactionId, txUuid))
+        .orderBy(schema.transactionMessages.createdAt);
+    } catch (msgErr) {
+      console.warn('Could not fetch messages (non-fatal):', msgErr);
+      messages = [];
+    }
 
     // Fetch buyer, seller, and approver details
     const userIds = [
@@ -83,8 +92,10 @@ export async function GET(
       transaction.secondApproverId,
     ].filter(Boolean) as string[];
 
-    const relatedUsers = userIds.length > 0
-      ? await db
+    let relatedUsers: any[] = [];
+    try {
+      if (userIds.length > 0) {
+        relatedUsers = await db
           .select({
             id: schema.users.id,
             name: schema.users.name,
@@ -95,8 +106,11 @@ export async function GET(
             tombstonedAt: schema.users.tombstonedAt,
           })
           .from(schema.users)
-          .where(inArray(schema.users.id, userIds))
-      : [];
+          .where(inArray(schema.users.id, userIds));
+      }
+    } catch (userErr) {
+      console.warn('Could not fetch related users (non-fatal):', userErr);
+    }
 
     const userMap = new Map(relatedUsers.map((u) => [u.id, u]));
     const buyer = userMap.get(transaction.buyerId);
@@ -140,7 +154,7 @@ export async function GET(
       },
       contract: contract[0] || null,
       paymentReservation: paymentReservation[0] || null,
-      documents,
+      documents: documents || [],
       verificationResult: verificationResult[0] || null,
       securityCheck: securityCheck[0] || null,
       paymentExecution: paymentExecution[0] || null,
@@ -150,14 +164,15 @@ export async function GET(
         approvedBy: adminResolutionLog.actor,
         resolvedAt: adminResolutionLog.timestamp,
       } : null,
-      milestones,
-      messages,
-      pledges,
-      agentRuns,
-      auditLogs,
+      milestones: milestones || [],
+      messages: messages || [],
+      pledges: pledges || [],
+      agentRuns: agentRuns || [],
+      auditLogs: auditLogs || [],
     });
   } catch (error) {
     console.error('Transaction GET error:', error);
-    return Response.json({ error: 'Failed to fetch transaction' }, { status: 500 });
+    const msg = error instanceof Error ? error.message : 'Failed to fetch transaction';
+    return Response.json({ error: `Failed to fetch transaction: ${msg}` }, { status: 500 });
   }
 }
