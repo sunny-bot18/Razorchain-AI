@@ -1,0 +1,29 @@
+SHIPPING MANIFEST
+=======================================================
+Manifest Number: SM-2026-1045
+Carrier: Blue Dart Express
+Tracking Number: BD987654321IN
+Date of Shipment: 2026-09-04
+
+Shipper:
+  Global Bearings Ltd
+  123 Manufacturing Zone, Mumbai, Maharashtra 400001
+
+Consignee:
+  Acme Manufacturing
+  Bengaluru
+
+Reference: PO-2026-1045
+
+Package Details:
+  Total Packages: 5 cartons
+  Total Weight: 125 kg
+  Description: Industrial Ball Bearings (6205-2RS)
+  Quantity: 500 units
+
+Delivery Status: DELIVERED
+Delivery Date: 2026-09-04
+Proof of Delivery: Signature obtained
+
+Authorized By: Priya Sharma
+=======================================================

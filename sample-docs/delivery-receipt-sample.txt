@@ -1,0 +1,26 @@
+DELIVERY RECEIPT
+=======================================================
+Receipt Number: DR-2026-1045
+Date: 2026-09-04
+
+Sender: Global Bearings Ltd
+Receiver: Acme Manufacturing
+
+Delivery Address: Bengaluru
+
+Reference PO: PO-2026-1045
+
+Items Delivered:
+  Description: Industrial Ball Bearings (6205-2RS)
+  Quantity Received: 500 units
+  Condition: Good - No Damage
+
+Received By: Rajesh Kumar
+Designation: Warehouse Manager
+Date/Time: 2026-09-04 14:30 IST
+
+Signature: [Signed]
+Stamp: [Company Stamp Applied]
+
+Notes: All items received in good condition. Package seals intact.
+=======================================================

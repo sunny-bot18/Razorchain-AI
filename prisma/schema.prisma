@@ -1,0 +1,310 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  BUYER
+  SELLER
+  ADMIN
+}
+
+enum TransactionStatus {
+  CREATED
+  PAYMENT_AUTHORIZED
+  FUNDS_RESERVED
+  DELIVERY_PENDING
+  VERIFICATION_PENDING
+  VERIFIED
+  CAPTURE_REQUESTED
+  SETTLED
+  VERIFICATION_FAILED
+  PAYMENT_FAILED
+  CANCELLED
+  REFUNDED
+  MANUAL_REVIEW
+  DISPUTED
+}
+
+enum VerificationStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  MANUAL_REVIEW
+}
+
+enum SecurityStatus {
+  SAFE
+  SUSPICIOUS
+  BLOCKED
+}
+
+model User {
+  id           String   @id @default(uuid())
+  email        String   @unique
+  name         String
+  company      String?
+  role         UserRole
+  passwordHash String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  taxId            String?
+  kybStatus        String   @default("PENDING")
+  kybClearedAt     DateTime?
+  uboDetails       Json?
+  corporateRegistration Json?
+
+  buyerTransactions  Transaction[] @relation("BuyerTransactions")
+  sellerTransactions Transaction[] @relation("SellerTransactions")
+  auditLogs          AuditLog[]
+  disputes           Dispute[]
+  adjustmentNotes    AdjustmentNote[]
+}
+
+model Transaction {
+  id                String            @id @default(uuid())
+  transactionNumber String            @unique
+  buyerId           String
+  sellerId          String
+  poNumber          String
+  productDescription String
+  quantity          Int
+  amount            Float
+  deliveryAddress   String
+  expectedDeliveryDate DateTime
+  verificationConditions String[]
+  status            TransactionStatus @default(CREATED)
+  autoReleaseAt    DateTime?
+  sellerProofDeadline DateTime?
+  partialQuantityShipped Int @default(0)
+  partialSettlementApproved Boolean @default(false)
+  trackingNumber   String?
+  carrier          String?
+  carrierStatus    String?
+  carrierVerifiedAt DateTime?
+  dynamicDiscountOffered Boolean @default(false)
+  dynamicDiscountRate Float?
+  dynamicDiscountAmount Float?
+  dynamicDiscountAccepted Boolean @default(false)
+  isFactored Boolean @default(false)
+  factoringLender String?
+  factoringAdvanceAmount Float?
+  currency String @default("INR")
+  lockedFxRate Float?
+  hedgedAmount Float?
+  fxLockedAt DateTime?
+  requiresDualApproval Boolean @default(false)
+  firstApproverId String?
+  firstApprovedAt DateTime?
+  secondApproverId String?
+  secondApprovedAt DateTime?
+  merkleRoot String?
+  merkleAnchorTx String?
+  merkleAnchoredAt DateTime?
+  virtualAccount Json?
+  netAdjustedAmount Float?
+  disputeDetails Json?
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+
+  buyer    User @relation("BuyerTransactions", fields: [buyerId], references: [id])
+  seller   User @relation("SellerTransactions", fields: [sellerId], references: [id])
+
+  contract           Contract?
+  paymentReservation PaymentReservation?
+  documents          Document[]
+  verificationResult VerificationResult?
+  securityCheck      SecurityCheck?
+  paymentExecution   PaymentExecution?
+  agentRuns          AgentRun[]
+  auditLogs          AuditLog[]
+  disputes           Dispute[]
+  adjustmentNotes    AdjustmentNote[]
+}
+
+model Contract {
+  id                String   @id @default(uuid())
+  transactionId     String   @unique
+  poNumber          String
+  requiredQuantity  Int
+  amount            Float
+  deliveryAddress   String
+  expectedDeliveryDate DateTime
+  requiredChecks    String[]
+  tolerances        Json?
+  parsedConditions  Json
+  createdAt         DateTime @default(now())
+
+  transaction Transaction @relation(fields: [transactionId], references: [id])
+}
+
+model PaymentReservation {
+  id              String   @id @default(uuid())
+  transactionId   String   @unique
+  razorpayOrderId String?
+  razorpayPaymentId String?
+  amount          Float
+  currency        String   @default("INR")
+  status          String   @default("CREATED")
+  isSimulated     Boolean  @default(false)
+  idempotencyKey  String   @unique
+  metadata        Json?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  transaction Transaction @relation(fields: [transactionId], references: [id])
+}
+
+model Document {
+  id            String   @id @default(uuid())
+  transactionId String
+  fileName      String
+  fileType      String
+  filePath      String
+  fileSize      Int
+  documentType  String?
+  uploadedAt    DateTime @default(now())
+
+  transaction Transaction @relation(fields: [transactionId], references: [id])
+}
+
+model VerificationResult {
+  id            String             @id @default(uuid())
+  transactionId String             @unique
+  status        VerificationStatus @default(PENDING)
+  confidence    Float?
+  checks        Json?
+  failedChecks  String[]
+  extractedData Json?
+  reason        String?
+  createdAt     DateTime           @default(now())
+  updatedAt     DateTime           @updatedAt
+
+  transaction Transaction @relation(fields: [transactionId], references: [id])
+}
+
+model SecurityCheck {
+  id            String         @id @default(uuid())
+  transactionId String         @unique
+  riskScore     Float
+  status        SecurityStatus
+  flags         String[]
+  details       Json?
+  createdAt     DateTime       @default(now())
+
+  transaction Transaction @relation(fields: [transactionId], references: [id])
+}
+
+model PaymentExecution {
+  id              String   @id @default(uuid())
+  transactionId   String   @unique
+  idempotencyKey  String   @unique
+  action          String
+  amount          Float
+  status          String   @default("PENDING")
+  razorpayResponse Json?
+  executedAt      DateTime?
+  createdAt       DateTime @default(now())
+
+  transaction Transaction @relation(fields: [transactionId], references: [id])
+}
+
+model AgentRun {
+  id            String   @id @default(uuid())
+  transactionId String
+  agentName     String
+  runId         String   @unique @default(uuid())
+  status        String   @default("RUNNING")
+  input         Json?
+  output        Json?
+  confidence    Float?
+  model         String?
+  startTime     DateTime @default(now())
+  endTime       DateTime?
+  durationMs    Int?
+
+  transaction Transaction @relation(fields: [transactionId], references: [id])
+}
+
+model AuditLog {
+  id            String   @id @default(uuid())
+  transactionId String?
+  userId        String?
+  actor         String
+  event         String
+  action        String
+  result        String?
+  metadata      Json?
+  timestamp     DateTime @default(now())
+
+  transaction Transaction? @relation(fields: [transactionId], references: [id])
+  user        User?        @relation(fields: [userId], references: [id])
+}
+
+model MerkleBatch {
+  id             String   @id @default(uuid())
+  root           String
+  leafCount      Int
+  transactionIds String[]
+  chain          String   @default("POLYGON")
+  txHash         String?
+  blockNumber    Int?
+  createdAt      DateTime @default(now())
+}
+
+model TradeCreditPledge {
+  id              String    @id @default(uuid())
+  transactionId   String
+  lenderId        String
+  lenderName      String
+  advanceAmount   Float
+  discountFee     Float     @default(0)
+  status          String    @default("PLEDGED")
+  metadata        Json?
+  approvedAt      DateTime?
+  disbursedAt     DateTime?
+  disbursementUtr String?
+  lienReference   String?
+  createdAt       DateTime  @default(now())
+  settledAt       DateTime?
+
+  transaction Transaction @relation(fields: [transactionId], references: [id])
+}
+
+model Dispute {
+  id                   String    @id @default(uuid())
+  transactionId        String
+  raisedById           String
+  category             String
+  reason               String
+  claimAmount          Float?
+  status               String    @default("OPEN")
+  haltedAutoReleaseAt  DateTime?
+  resolution           Json?
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
+
+  transaction Transaction @relation(fields: [transactionId], references: [id])
+  raisedBy    User        @relation(fields: [raisedById], references: [id])
+}
+
+model AdjustmentNote {
+  id            String   @id @default(uuid())
+  transactionId String
+  issuedById    String
+  noteNumber    String   @unique
+  type          String
+  amount        Float
+  reason        String
+  lineItemRef   String?
+  status        String   @default("ISSUED")
+  metadata      Json?
+  createdAt     DateTime @default(now())
+
+  transaction Transaction @relation(fields: [transactionId], references: [id])
+  issuedBy    User        @relation(fields: [issuedById], references: [id])
+}

@@ -1,0 +1,68 @@
+import { type NextRequest } from 'next/server';
+import { eq } from 'drizzle-orm';
+import { z } from 'zod';
+import { db } from '@/lib/db';
+import * as schema from '@/lib/db/schema';
+import { getUser } from '@/lib/auth';
+
+const resolutionSchema = z.object({
+  decision: z.enum(['APPROVED', 'REJECTED']),
+  reason: z.string().trim().min(1).max(2_000),
+});
+
+/** Records a human override for a manual-review or failed AI decision. */
+export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  try {
+    const user = await getUser(request);
+    if (!user) return Response.json({ error: 'Not authenticated' }, { status: 401 });
+    if (user.role !== 'ADMIN') return Response.json({ error: 'Only administrators can resolve manual reviews' }, { status: 403 });
+    const body = resolutionSchema.safeParse(await request.json().catch(() => ({})));
+    if (!body.success) return Response.json({ error: 'A decision and a non-empty reason are required' }, { status: 400 });
+    const { id } = await params;
+    const [transaction] = await db.select().from(schema.transactions).where(eq(schema.transactions.id, id)).limit(1);
+    if (!transaction) return Response.json({ error: 'Transaction not found' }, { status: 404 });
+    if (!['MANUAL_REVIEW', 'VERIFICATION_FAILED', 'DISPUTED'].includes(transaction.status)) {
+      return Response.json({ error: `Admin resolution is not available while transaction is ${transaction.status}` }, { status: 409 });
+    }
+
+    const [reservation] = await db
+      .select()
+      .from(schema.paymentReservations)
+      .where(eq(schema.paymentReservations.transactionId, id))
+      .limit(1);
+
+    let nextStatus: (typeof schema.transactionStatusEnum.enumValues)[number];
+    if (body.data.decision === 'APPROVED') {
+      nextStatus = 'VERIFIED';
+    } else {
+      // Rejection of evidence or upholding dispute voids seller's claim and initiates refund to buyer
+      nextStatus = reservation ? 'REFUNDED' : 'CANCELLED';
+      if (reservation) {
+        await db
+          .update(schema.paymentReservations)
+          .set({ status: 'refund_requested', updatedAt: new Date() })
+          .where(eq(schema.paymentReservations.transactionId, id));
+      }
+    }
+
+    await db.update(schema.transactions).set({ status: nextStatus, updatedAt: new Date() }).where(eq(schema.transactions.id, id));
+    await db.update(schema.verificationResults).set({
+      status: body.data.decision,
+      reason: `${body.data.reason} (human override by ${user.email})`,
+      updatedAt: new Date(),
+    }).where(eq(schema.verificationResults.transactionId, id));
+    await db.insert(schema.auditLogs).values({
+      transactionId: id,
+      userId: user.id,
+      actor: user.email,
+      event: nextStatus === 'REFUNDED' ? 'REFUND_REQUESTED' : 'MANUAL_REVIEW_RESOLVED',
+      action: body.data.decision === 'APPROVED' ? 'RESOLVE' : 'REFUND',
+      result: 'SUCCESS',
+      metadata: { from: transaction.status, to: nextStatus, decision: body.data.decision, reason: body.data.reason },
+    });
+    return Response.json({ status: nextStatus, decision: body.data.decision });
+  } catch (error) {
+    console.error('Resolve POST error:', error);
+    return Response.json({ error: 'Failed to resolve manual review' }, { status: 500 });
+  }
+}

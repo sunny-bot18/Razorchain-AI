@@ -1,0 +1,159 @@
+import { type NextRequest } from 'next/server';
+import { eq, inArray } from 'drizzle-orm';
+import { db } from '@/lib/db';
+import * as schema from '@/lib/db/schema';
+import { canAccessTransaction, getUser } from '@/lib/auth';
+
+export async function GET(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const user = await getUser(request);
+    if (!user) {
+      return Response.json({ error: 'Not authenticated' }, { status: 401 });
+    }
+
+    const { id } = await params;
+
+    const [transaction] = await db
+      .select()
+      .from(schema.transactions)
+      .where(eq(schema.transactions.id, id))
+      .limit(1);
+
+    if (!transaction) {
+      return Response.json({ error: 'Transaction not found' }, { status: 404 });
+    }
+    if (!canAccessTransaction(user, transaction)) {
+      return Response.json({ error: 'Not authorized for this transaction' }, { status: 403 });
+    }
+
+    // Fetch all related data in parallel
+    const [
+      contract,
+      paymentReservation,
+      documents,
+      verificationResult,
+      securityCheck,
+      paymentExecution,
+      agentRuns,
+      auditLogs,
+      milestones,
+      pledges,
+    ] = await Promise.all([
+      db.select().from(schema.contracts).where(eq(schema.contracts.transactionId, id)).limit(1),
+      db.select().from(schema.paymentReservations).where(eq(schema.paymentReservations.transactionId, id)).limit(1),
+      db.select().from(schema.documents).where(eq(schema.documents.transactionId, id)),
+      db.select().from(schema.verificationResults).where(eq(schema.verificationResults.transactionId, id)).limit(1),
+      db.select().from(schema.securityChecks).where(eq(schema.securityChecks.transactionId, id)).limit(1),
+      db.select().from(schema.paymentExecutions).where(eq(schema.paymentExecutions.transactionId, id)).limit(1),
+      db.select().from(schema.agentRuns).where(eq(schema.agentRuns.transactionId, id)),
+      db.select().from(schema.auditLogs).where(eq(schema.auditLogs.transactionId, id)),
+      db.select().from(schema.paymentMilestones).where(eq(schema.paymentMilestones.transactionId, id)).orderBy(schema.paymentMilestones.sequence),
+      db.select().from(schema.tradeCreditPledges).where(eq(schema.tradeCreditPledges.transactionId, id)),
+    ]);
+
+    // Fetch messages with sender info
+    const messages = await db
+      .select({
+        id: schema.transactionMessages.id,
+        transactionId: schema.transactionMessages.transactionId,
+        userId: schema.transactionMessages.userId,
+        flaggedCheck: schema.transactionMessages.flaggedCheck,
+        body: schema.transactionMessages.body,
+        createdAt: schema.transactionMessages.createdAt,
+        senderName: schema.users.name,
+        senderRole: schema.users.role,
+      })
+      .from(schema.transactionMessages)
+      .leftJoin(schema.users, eq(schema.transactionMessages.userId, schema.users.id))
+      .where(eq(schema.transactionMessages.transactionId, id))
+      .orderBy(schema.transactionMessages.createdAt);
+
+    // Fetch buyer, seller, and approver details
+    const userIds = [
+      transaction.buyerId,
+      transaction.sellerId,
+      transaction.firstApproverId,
+      transaction.secondApproverId,
+    ].filter(Boolean) as string[];
+
+    const relatedUsers = userIds.length > 0
+      ? await db
+          .select({
+            id: schema.users.id,
+            name: schema.users.name,
+            email: schema.users.email,
+            company: schema.users.company,
+            role: schema.users.role,
+            isTombstoned: schema.users.isTombstoned,
+            tombstonedAt: schema.users.tombstonedAt,
+          })
+          .from(schema.users)
+          .where(inArray(schema.users.id, userIds))
+      : [];
+
+    const userMap = new Map(relatedUsers.map((u) => [u.id, u]));
+    const buyer = userMap.get(transaction.buyerId);
+    const seller = userMap.get(transaction.sellerId);
+    const firstApprover = transaction.firstApproverId ? userMap.get(transaction.firstApproverId) : null;
+    const secondApprover = transaction.secondApproverId ? userMap.get(transaction.secondApproverId) : null;
+
+    const isBuyerTombstoned = Boolean(buyer?.isTombstoned);
+    const isSellerTombstoned = Boolean(seller?.isTombstoned);
+
+    const cleanBuyerName = isBuyerTombstoned
+      ? (buyer?.name || '[REDACTED USER]')
+      : (buyer?.name === 'Demo Buyer' || !buyer?.name)
+      ? (buyer?.company || 'Acme Manufacturing Corp')
+      : buyer.name;
+    const cleanSellerName = isSellerTombstoned
+      ? (seller?.name || '[REDACTED USER]')
+      : (seller?.name === 'Demo Seller' || !seller?.name)
+      ? (seller?.company || 'Apex Precision Engineering Ltd')
+      : seller.name;
+
+    const adminResolutionLog = [...auditLogs].reverse().find((log) => log.event === 'MANUAL_REVIEW_RESOLVED' && log.result === 'SUCCESS');
+    const resolutionMetadata = adminResolutionLog?.metadata as { decision?: 'APPROVED' | 'REJECTED'; reason?: string } | null;
+
+    return Response.json({
+      viewer: { id: user.id, role: user.role },
+      transaction: {
+        ...transaction,
+        buyerName: cleanBuyerName,
+        buyerCompany: isBuyerTombstoned ? null : (buyer?.company || null),
+        buyerIsTombstoned: isBuyerTombstoned,
+        buyerTombstonedAt: buyer?.tombstonedAt || null,
+        sellerName: cleanSellerName,
+        sellerCompany: isSellerTombstoned ? null : (seller?.company || null),
+        sellerIsTombstoned: isSellerTombstoned,
+        sellerTombstonedAt: seller?.tombstonedAt || null,
+        firstApproverName: firstApprover?.name || null,
+        secondApproverName: secondApprover?.name || null,
+        buyer: buyer || null,
+        seller: seller || null,
+      },
+      contract: contract[0] || null,
+      paymentReservation: paymentReservation[0] || null,
+      documents,
+      verificationResult: verificationResult[0] || null,
+      securityCheck: securityCheck[0] || null,
+      paymentExecution: paymentExecution[0] || null,
+      adminResolution: adminResolutionLog ? {
+        decision: resolutionMetadata?.decision || (transaction.status === 'VERIFIED' ? 'APPROVED' : 'REJECTED'),
+        reason: resolutionMetadata?.reason || 'No reason recorded',
+        approvedBy: adminResolutionLog.actor,
+        resolvedAt: adminResolutionLog.timestamp,
+      } : null,
+      milestones,
+      messages,
+      pledges,
+      agentRuns,
+      auditLogs,
+    });
+  } catch (error) {
+    console.error('Transaction GET error:', error);
+    return Response.json({ error: 'Failed to fetch transaction' }, { status: 500 });
+  }
+}

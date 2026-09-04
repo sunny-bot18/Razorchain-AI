@@ -1,0 +1,26 @@
+INVOICE
+=======================================================
+Company: Global Bearings Ltd
+Invoice Number: INV-2026-1045
+Date: 2026-09-04
+
+Bill To:
+  Acme Manufacturing
+  Bengaluru
+
+Purchase Order: PO-2026-1045
+
+Items:
+  Description: Industrial Ball Bearings (6205-2RS)
+  Quantity: 500 units
+  Unit Price: ₹20.00
+  Total: ₹10,000.00
+
+Subtotal: ₹10,000.00
+Grand Total: ₹10,000.00
+
+Payment Terms: Net 30
+Delivery Address: Bengaluru
+
+Authorized Signature: [Signed]
+=======================================================
