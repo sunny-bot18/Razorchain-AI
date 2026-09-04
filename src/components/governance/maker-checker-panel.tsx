@@ -236,9 +236,32 @@ export function MakerCheckerPanel({
                 </button>
               </div>
             ) : (
-              <div className="flex items-center gap-2 text-zinc-400 w-full">
-                <Clock className="h-4 w-4 text-amber-400" />
-                <span>Awaiting Buyer authorization signature before Seller counterparty can co-sign.</span>
+              <div className="flex flex-wrap items-center justify-between gap-3 w-full">
+                <div className="flex items-center gap-2 text-zinc-400">
+                  <Clock className="h-4 w-4 text-amber-400" />
+                  <span>Awaiting Buyer authorization signature before Seller counterparty can co-sign.</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={async () => {
+                    try {
+                      const res = await fetch('/api/auth', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ email: 'buyer@demo.com', password: 'password123', action: 'login' }),
+                      });
+                      if (res.ok) {
+                        window.location.href = `/buyer/transaction/${transactionId}`;
+                      }
+                    } catch (e) {
+                      console.error(e);
+                    }
+                  }}
+                  className="inline-flex items-center gap-1.5 rounded-lg border border-blue-500/40 bg-blue-500/15 px-3 py-1.5 text-xs font-semibold text-blue-300 hover:bg-blue-500/25 transition-colors cursor-pointer"
+                >
+                  <UserCheck className="h-3.5 w-3.5" />
+                  Sign in as Buyer to Authorize ➔
+                </button>
               </div>
             )
           ) : /* Case 2: Buyer Signed, Seller Pending */
@@ -263,9 +286,32 @@ export function MakerCheckerPanel({
                 </div>
               </div>
             ) : (
-              <div className="flex items-center gap-2 text-zinc-400 w-full">
-                <Clock className="h-4 w-4 text-amber-400" />
-                <span>1st signature (Buyer) verified. Awaiting Seller counterparty acceptance signature.</span>
+              <div className="flex flex-wrap items-center justify-between gap-3 w-full">
+                <div className="flex items-center gap-2 text-zinc-400">
+                  <Clock className="h-4 w-4 text-amber-400" />
+                  <span>1st signature (Buyer) verified. Awaiting Seller counterparty acceptance signature.</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={async () => {
+                    try {
+                      const res = await fetch('/api/auth', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ email: 'seller@demo.com', password: 'password123', action: 'login' }),
+                      });
+                      if (res.ok) {
+                        window.location.href = `/seller/transaction/${transactionId}`;
+                      }
+                    } catch (e) {
+                      console.error(e);
+                    }
+                  }}
+                  className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-500/40 bg-emerald-500/15 px-3 py-1.5 text-xs font-semibold text-emerald-300 hover:bg-emerald-500/25 transition-colors cursor-pointer"
+                >
+                  <UserCheck className="h-3.5 w-3.5" />
+                  Sign in as Seller to Co-Sign ➔
+                </button>
               </div>
             )
           ) : (

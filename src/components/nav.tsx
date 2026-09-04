@@ -56,6 +56,27 @@ export default function Nav() {
     links.push({ label: 'Privacy & Settings', href: '/settings' });
   }
 
+  const handleQuickSwitch = async (targetRole: 'BUYER' | 'SELLER' | 'ADMIN') => {
+    const emailMap = {
+      BUYER: 'buyer@demo.com',
+      SELLER: 'seller@demo.com',
+      ADMIN: 'admin@demo.com',
+    };
+    try {
+      const res = await fetch('/api/auth', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: emailMap[targetRole], password: 'password123', action: 'login' }),
+      });
+      if (res.ok) {
+        const dest = targetRole === 'BUYER' ? '/buyer' : targetRole === 'SELLER' ? '/seller' : '/admin';
+        window.location.href = dest;
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
   return (
     <header className="sticky top-0 z-30 border-b border-zinc-800 bg-zinc-950/80 backdrop-blur">
       <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-4 py-3">
@@ -86,15 +107,61 @@ export default function Nav() {
         <div className="flex items-center gap-3">
           {user ? (
             <>
+              {/* Quick Role Switcher */}
+              <div className="hidden sm:flex items-center gap-1 rounded-lg border border-zinc-800 bg-zinc-900/90 p-1 text-xs">
+                <span className="px-1.5 text-[11px] text-zinc-500 font-medium">Switch:</span>
+                <button
+                  type="button"
+                  onClick={() => handleQuickSwitch('BUYER')}
+                  className={cn(
+                    'rounded px-2 py-0.5 font-medium transition-colors cursor-pointer',
+                    user.role === 'BUYER'
+                      ? 'bg-blue-600 text-white font-bold'
+                      : 'text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800'
+                  )}
+                >
+                  Buyer
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleQuickSwitch('SELLER')}
+                  className={cn(
+                    'rounded px-2 py-0.5 font-medium transition-colors cursor-pointer',
+                    user.role === 'SELLER'
+                      ? 'bg-emerald-600 text-white font-bold'
+                      : 'text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800'
+                  )}
+                >
+                  Seller
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleQuickSwitch('ADMIN')}
+                  className={cn(
+                    'rounded px-2 py-0.5 font-medium transition-colors cursor-pointer',
+                    user.role === 'ADMIN'
+                      ? 'bg-purple-600 text-white font-bold'
+                      : 'text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800'
+                  )}
+                >
+                  Admin
+                </button>
+              </div>
+
               <div className="flex items-center gap-2">
-                <span className="text-sm text-zinc-300">{user.name}</span>
-                <span className="rounded-full border border-blue-500/30 bg-blue-500/15 px-2 py-0.5 text-xs font-medium uppercase text-blue-300">
+                <span className="text-sm text-zinc-300 hidden md:inline">{user.name}</span>
+                <span className={cn(
+                  'rounded-full border px-2 py-0.5 text-xs font-medium uppercase',
+                  user.role === 'BUYER' ? 'border-blue-500/30 bg-blue-500/15 text-blue-300'
+                    : user.role === 'SELLER' ? 'border-emerald-500/30 bg-emerald-500/15 text-emerald-300'
+                    : 'border-purple-500/30 bg-purple-500/15 text-purple-300'
+                )}>
                   {user.role}
                 </span>
               </div>
               <button
                 onClick={handleLogout}
-                className="rounded-md border border-zinc-700 bg-zinc-800 px-3 py-1.5 text-sm font-medium text-zinc-200 transition-colors hover:bg-zinc-700"
+                className="rounded-md border border-zinc-700 bg-zinc-800 px-3 py-1.5 text-sm font-medium text-zinc-200 transition-colors hover:bg-zinc-700 cursor-pointer"
               >
                 Logout
               </button>
