@@ -11,6 +11,8 @@ import { runExecutionCheck, type ExecutionDecision } from '@/lib/agents/executio
 import { carrierService, type CarrierCode } from '@/lib/services/carrier-service';
 import { dispatchWebhook } from '@/lib/services/webhook-service';
 import { calculateDynamicDiscount, recordDiscountOffer } from '@/lib/services/dynamic-discount-service';
+import { ensureDatabaseInitialized } from '@/lib/db/init-db';
+import { findTransactionByIdOrNumber } from '@/lib/db/transaction-utils';
 
 type TransactionStatus = (typeof schema.transactionStatusEnum.enumValues)[number];
 
@@ -52,6 +54,8 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    await ensureDatabaseInitialized();
+
     const user = await getUser(request);
     if (!user) {
       return Response.json({ error: 'Not authenticated' }, { status: 401 });
@@ -59,11 +63,7 @@ export async function POST(
 
     const { id } = await params;
 
-    const [transaction] = await db
-      .select()
-      .from(schema.transactions)
-      .where(eq(schema.transactions.id, id))
-      .limit(1);
+    const transaction = await findTransactionByIdOrNumber(id);
 
     if (!transaction) {
       return Response.json({ error: 'Transaction not found' }, { status: 404 });
@@ -75,22 +75,24 @@ export async function POST(
       return Response.json({ error: `Verification is not available while transaction is ${transaction.status}` }, { status: 409 });
     }
 
+    const txUuid = transaction.id;
+
     const [contract] = await db
       .select()
       .from(schema.contracts)
-      .where(eq(schema.contracts.transactionId, id))
+      .where(eq(schema.contracts.transactionId, txUuid))
       .limit(1);
 
     const [reservation] = await db
       .select()
       .from(schema.paymentReservations)
-      .where(eq(schema.paymentReservations.transactionId, id))
+      .where(eq(schema.paymentReservations.transactionId, txUuid))
       .limit(1);
 
     const documentRows = await db
       .select()
       .from(schema.documents)
-      .where(eq(schema.documents.transactionId, id));
+      .where(eq(schema.documents.transactionId, txUuid));
 
     if (documentRows.length === 0) {
       return Response.json(
@@ -103,10 +105,10 @@ export async function POST(
     await db
       .update(schema.transactions)
       .set({ status: 'VERIFICATION_PENDING', updatedAt: new Date() })
-      .where(eq(schema.transactions.id, id));
+      .where(eq(schema.transactions.id, txUuid));
 
     await db.insert(schema.auditLogs).values({
-      transactionId: id,
+      transactionId: txUuid,
       userId: user.id,
       actor: user.email,
       event: 'Verification started',
@@ -169,7 +171,10 @@ export async function POST(
           required_quantity: contract.requiredQuantity,
           amount: contract.amount,
           delivery_address: contract.deliveryAddress,
-          expected_delivery_date: contract.expectedDeliveryDate.toISOString().slice(0, 10),
+          expected_delivery_date: (contract.expectedDeliveryDate instanceof Date
+            ? contract.expectedDeliveryDate.toISOString()
+            : String(contract.expectedDeliveryDate || '')
+          ).slice(0, 10),
           required_checks: contract.requiredChecks,
           tolerances: {
             quantity_tolerance_percent:
@@ -209,7 +214,7 @@ export async function POST(
           carrierStatus: tracking.status,
           carrierVerifiedAt: new Date(),
           updatedAt: new Date(),
-        }).where(eq(schema.transactions.id, id));
+        }).where(eq(schema.transactions.id, txUuid));
         // Append carrier check to verification if available
         if (verification && tracking.status === 'DELIVERED') {
           verification.checks.push({
@@ -253,7 +258,7 @@ export async function POST(
       await db
         .insert(schema.verificationResults)
         .values({
-          transactionId: id,
+          transactionId: txUuid,
           status: verification.status,
           confidence: verification.confidence,
           checks: verification.checks as unknown as Record<string, unknown>,
@@ -279,7 +284,7 @@ export async function POST(
     await db
       .insert(schema.securityChecks)
       .values({
-        transactionId: id,
+        transactionId: txUuid,
         riskScore: security.riskScore,
         status: security.status,
         flags: security.flags,
@@ -293,7 +298,7 @@ export async function POST(
     // Agent runs
     const now = new Date();
     await db.insert(schema.agentRuns).values({
-      transactionId: id,
+      transactionId: txUuid,
       agentName: visionResult.agentName,
       runId: visionResult.runId,
       status: visionResult.status,
@@ -328,20 +333,20 @@ export async function POST(
         autoReleaseAt,
         updatedAt: new Date(),
       })
-      .where(eq(schema.transactions.id, id));
+      .where(eq(schema.transactions.id, txUuid));
 
     // Evaluate early payment dynamic discount offer
     let discountCalc = null;
     if (finalStatus === 'VERIFIED') {
       discountCalc = calculateDynamicDiscount(transaction.amount, transaction.expectedDeliveryDate, new Date());
       if (discountCalc.eligible) {
-        await recordDiscountOffer(id, discountCalc);
+        await recordDiscountOffer(txUuid, discountCalc);
       }
     }
 
     // 9. Log everything to audit_logs
     await db.insert(schema.auditLogs).values({
-      transactionId: id,
+      transactionId: txUuid,
       userId: user.id,
       actor: user.email,
       event: 'Verification completed',
@@ -366,7 +371,7 @@ export async function POST(
         : finalStatus === 'MANUAL_REVIEW'
         ? 'MANUAL_REVIEW_TRIGGERED' as const
         : 'VERIFICATION_FAILED' as const;
-      void dispatchWebhook(id, webhookEvent, {
+      void dispatchWebhook(txUuid, webhookEvent, {
         status: finalStatus,
         confidence: verification?.confidence,
         carrierStatus: carrierCheck?.status,
@@ -388,6 +393,7 @@ export async function POST(
     });
   } catch (error) {
     console.error('Verify POST error:', error);
-    return Response.json({ error: 'Failed to run verification' }, { status: 500 });
+    const msg = error instanceof Error ? error.message : 'Failed to run verification';
+    return Response.json({ error: msg }, { status: 500 });
   }
 }

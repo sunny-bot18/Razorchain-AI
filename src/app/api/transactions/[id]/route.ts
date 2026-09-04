@@ -4,6 +4,7 @@ import { db } from '@/lib/db';
 import * as schema from '@/lib/db/schema';
 import { canAccessTransaction, getUser } from '@/lib/auth';
 import { ensureDatabaseInitialized } from '@/lib/db/init-db';
+import { findTransactionByIdOrNumber } from '@/lib/db/transaction-utils';
 
 export async function GET(
   request: NextRequest,
@@ -19,13 +20,7 @@ export async function GET(
 
     const { id } = await params;
 
-    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
-
-    const [transaction] = await db
-      .select()
-      .from(schema.transactions)
-      .where(isUuid ? eq(schema.transactions.id, id) : eq(schema.transactions.transactionNumber, id))
-      .limit(1);
+    const transaction = await findTransactionByIdOrNumber(id);
 
     if (!transaction) {
       return Response.json({ error: 'Transaction not found' }, { status: 404 });

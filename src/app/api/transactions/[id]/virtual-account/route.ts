@@ -5,6 +5,8 @@ import { createHash } from 'crypto';
 import { db } from '@/lib/db';
 import * as schema from '@/lib/db/schema';
 import { canAccessTransaction, getUser } from '@/lib/auth';
+import { ensureDatabaseInitialized } from '@/lib/db/init-db';
+import { findTransactionByIdOrNumber } from '@/lib/db/transaction-utils';
 
 const vanRequestSchema = z.object({
   partnerBank: z.enum(['AXIS', 'YES_BANK', 'HDFC', 'ICICI']).default('AXIS'),
@@ -15,17 +17,15 @@ type Params = { params: Promise<{ id: string }> };
 
 export async function POST(request: NextRequest, { params }: Params) {
   try {
+    await ensureDatabaseInitialized();
+
     const user = await getUser(request);
     if (!user) {
       return Response.json({ error: 'Not authenticated' }, { status: 401 });
     }
 
     const { id } = await params;
-    const [tx] = await db
-      .select()
-      .from(schema.transactions)
-      .where(eq(schema.transactions.id, id))
-      .limit(1);
+    const tx = await findTransactionByIdOrNumber(id);
 
     if (!tx) {
       return Response.json({ error: 'Transaction not found' }, { status: 404 });
@@ -34,6 +34,8 @@ export async function POST(request: NextRequest, { params }: Params) {
     if (!canAccessTransaction(user, tx)) {
       return Response.json({ error: 'Not authorized for this transaction' }, { status: 403 });
     }
+
+    const txUuid = tx.id;
 
     const body = await request.json().catch(() => ({}));
     const parsed = vanRequestSchema.safeParse(body);
@@ -47,7 +49,7 @@ export async function POST(request: NextRequest, { params }: Params) {
       });
     }
 
-    const hash = createHash('sha256').update(`${tx.id}:${Date.now()}`).digest('hex').toUpperCase();
+    const hash = createHash('sha256').update(`${txUuid}:${Date.now()}`).digest('hex').toUpperCase();
     const vanSuffix = hash.slice(0, 8);
     const accountNumber = `RAZR${vanSuffix}`;
     const ifsc = partnerBank === 'YES_BANK' ? 'YESB0CMSNOC' : partnerBank === 'HDFC' ? 'HDFC0000060' : 'UTIB0CCH274';
@@ -75,10 +77,10 @@ export async function POST(request: NextRequest, { params }: Params) {
         virtualAccount: virtualAccountData,
         updatedAt: new Date(),
       })
-      .where(eq(schema.transactions.id, id));
+      .where(eq(schema.transactions.id, txUuid));
 
     await db.insert(schema.auditLogs).values({
-      transactionId: id,
+      transactionId: txUuid,
       userId: user.id,
       actor: user.email,
       event: 'VIRTUAL_ACCOUNT_GENERATED',

@@ -4,6 +4,8 @@ import { z } from 'zod';
 import { db } from '@/lib/db';
 import * as schema from '@/lib/db/schema';
 import { canAccessTransaction, getUser } from '@/lib/auth';
+import { ensureDatabaseInitialized } from '@/lib/db/init-db';
+import { findTransactionByIdOrNumber } from '@/lib/db/transaction-utils';
 
 const approveSchema = z.object({
   action: z.enum(['APPROVE', 'REJECT']),
@@ -16,33 +18,40 @@ type Params = { params: Promise<{ id: string; milestoneId: string }> };
 
 export async function GET(request: NextRequest, { params }: Params) {
   try {
+    await ensureDatabaseInitialized();
+
     const user = await getUser(request);
     if (!user) return Response.json({ error: 'Not authenticated' }, { status: 401 });
     const { id, milestoneId } = await params;
-    const [tx] = await db.select().from(schema.transactions).where(eq(schema.transactions.id, id)).limit(1);
+    const tx = await findTransactionByIdOrNumber(id);
     if (!tx) return Response.json({ error: 'Transaction not found' }, { status: 404 });
     if (!canAccessTransaction(user, tx)) return Response.json({ error: 'Not authorized' }, { status: 403 });
+    const txUuid = tx.id;
     const [milestone] = await db.select().from(schema.paymentMilestones)
-      .where(and(eq(schema.paymentMilestones.id, milestoneId), eq(schema.paymentMilestones.transactionId, id)))
+      .where(and(eq(schema.paymentMilestones.id, milestoneId), eq(schema.paymentMilestones.transactionId, txUuid)))
       .limit(1);
     if (!milestone) return Response.json({ error: 'Milestone not found' }, { status: 404 });
     return Response.json({ milestone });
   } catch (err) {
     console.error('Milestone GET error:', err);
-    return Response.json({ error: 'Failed to fetch milestone' }, { status: 500 });
+    const msg = err instanceof Error ? err.message : 'Failed to fetch milestone';
+    return Response.json({ error: msg }, { status: 500 });
   }
 }
 
 export async function POST(request: NextRequest, { params }: Params) {
   try {
+    await ensureDatabaseInitialized();
+
     const user = await getUser(request);
     if (!user) return Response.json({ error: 'Not authenticated' }, { status: 401 });
     const { id, milestoneId } = await params;
-    const [tx] = await db.select().from(schema.transactions).where(eq(schema.transactions.id, id)).limit(1);
+    const tx = await findTransactionByIdOrNumber(id);
     if (!tx) return Response.json({ error: 'Transaction not found' }, { status: 404 });
     if (user.id !== tx.buyerId && user.role !== 'ADMIN') return Response.json({ error: 'Only buyer/admin can approve milestones' }, { status: 403 });
+    const txUuid = tx.id;
     const [milestone] = await db.select().from(schema.paymentMilestones)
-      .where(and(eq(schema.paymentMilestones.id, milestoneId), eq(schema.paymentMilestones.transactionId, id)))
+      .where(and(eq(schema.paymentMilestones.id, milestoneId), eq(schema.paymentMilestones.transactionId, txUuid)))
       .limit(1);
     if (!milestone) return Response.json({ error: 'Milestone not found' }, { status: 404 });
     if (!['VERIFYING', 'APPROVED', 'EVIDENCE_PENDING'].includes(milestone.status)) {
@@ -77,11 +86,11 @@ export async function POST(request: NextRequest, { params }: Params) {
           partialQuantityShipped: partialQuantity,
           partialSettlementApproved: true,
           updatedAt: new Date(),
-        }).where(eq(schema.transactions.id, id));
+        }).where(eq(schema.transactions.id, txUuid));
       }
 
       await db.insert(schema.auditLogs).values({
-        transactionId: id,
+        transactionId: txUuid,
         userId: user.id,
         actor: user.email,
         event: 'MILESTONE_APPROVED',
@@ -100,7 +109,7 @@ export async function POST(request: NextRequest, { params }: Params) {
       .returning();
 
     await db.insert(schema.auditLogs).values({
-      transactionId: id,
+      transactionId: txUuid,
       userId: user.id,
       actor: user.email,
       event: 'MILESTONE_REJECTED',
@@ -111,6 +120,7 @@ export async function POST(request: NextRequest, { params }: Params) {
     return Response.json({ milestone: updated });
   } catch (err) {
     console.error('Milestone POST error:', err);
-    return Response.json({ error: 'Failed to action milestone' }, { status: 500 });
+    const msg = err instanceof Error ? err.message : 'Failed to action milestone';
+    return Response.json({ error: msg }, { status: 500 });
   }
 }
