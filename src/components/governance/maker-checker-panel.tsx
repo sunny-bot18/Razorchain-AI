@@ -247,6 +247,7 @@ export function MakerCheckerPanel({
                     try {
                       const res = await fetch('/api/auth', {
                         method: 'POST',
+                        credentials: 'include',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ email: 'buyer@demo.com', password: 'password123', action: 'login' }),
                       });
@@ -297,6 +298,7 @@ export function MakerCheckerPanel({
                     try {
                       const res = await fetch('/api/auth', {
                         method: 'POST',
+                        credentials: 'include',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ email: 'seller@demo.com', password: 'password123', action: 'login' }),
                       });

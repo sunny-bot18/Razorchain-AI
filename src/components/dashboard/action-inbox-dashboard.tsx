@@ -831,6 +831,7 @@ export function ActionInboxDashboard({
                   try {
                     const res = await fetch(`/api/transactions/${drawerData.id}/multisig`, {
                       method: 'POST',
+                      credentials: 'include',
                       headers: { 'Content-Type': 'application/json' },
                       body: JSON.stringify({ step }),
                     });

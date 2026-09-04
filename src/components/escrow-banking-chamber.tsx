@@ -94,6 +94,7 @@ export default function EscrowBankingChamber({
     try {
       const res = await fetch(`/api/transactions/${transactionId}/virtual-account`, {
         method: 'POST',
+        credentials: 'include',
       });
       const data = await res.json();
       if (data.virtualAccount) {

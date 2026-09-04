@@ -1075,6 +1075,7 @@ export default function BuyerTransactionDetail() {
                   try {
                     await fetch('/api/auth', {
                       method: 'POST',
+                      credentials: 'include',
                       headers: { 'Content-Type': 'application/json' },
                       body: JSON.stringify({ email: 'admin@demo.com', password: 'password123', action: 'login' }),
                     });
@@ -1320,6 +1321,7 @@ export default function BuyerTransactionDetail() {
           try {
             const res = await fetch(`/api/transactions/${t.id}/multisig`, {
               method: 'POST',
+              credentials: 'include',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({ step }),
             });

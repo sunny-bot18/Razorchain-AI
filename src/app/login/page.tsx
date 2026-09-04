@@ -34,6 +34,7 @@ export default function LoginPage() {
 
       const res = await fetch('/api/auth', {
         method: 'POST',
+        credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
       });
@@ -60,7 +61,7 @@ export default function LoginPage() {
     setError(null);
     setSeedSuccess(null);
     try {
-      const res = await fetch('/api/seed', { method: 'POST' });
+      const res = await fetch('/api/seed', { method: 'POST', credentials: 'include' });
       if (!res.ok) {
         throw new Error('Failed to seed database');
       }

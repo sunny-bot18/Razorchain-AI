@@ -18,6 +18,7 @@ import {
   Calendar,
   MessageSquare,
   Send,
+  Download,
 } from 'lucide-react';
 import StatusBadge from '@/components/status-badge';
 import { formatDate, formatINR } from '@/lib/utils';
@@ -262,7 +263,11 @@ export default function SellerTransactionPage() {
     try {
       const body = new FormData();
       files.forEach((f) => body.append('files', f));
-      const res = await fetch(`/api/transactions/${id}/documents`, { method: 'POST', body });
+      const res = await fetch(`/api/transactions/${id}/documents`, {
+        method: 'POST',
+        credentials: 'include',
+        body,
+      });
       const result = await res.json();
       if (!res.ok) throw new Error(result.error || 'Upload failed');
       if (result.errors && result.errors.length > 0 && result.uploadedCount === 0) {
@@ -286,6 +291,7 @@ export default function SellerTransactionPage() {
     try {
       const res = await fetch(`/api/transactions/${id}/cancel`, {
         method: 'POST',
+        credentials: 'include',
         headers: refundReason.trim() ? { 'Content-Type': 'application/json' } : undefined,
         body: refundReason.trim() ? JSON.stringify({ reason: refundReason }) : undefined,
       });
@@ -404,6 +410,16 @@ export default function SellerTransactionPage() {
           </div>
         </div>
         <div className="flex items-center gap-3">
+          {tx.status === 'SETTLED' && (
+            <button
+              type="button"
+              onClick={() => window.open(`/api/transactions/${id}/certificate`, '_blank')}
+              className="flex items-center gap-1.5 rounded-lg border border-emerald-500/40 bg-emerald-500/10 px-3 py-1.5 text-xs font-semibold text-emerald-300 hover:bg-emerald-500/20 transition-colors cursor-pointer"
+            >
+              <Download className="h-3.5 w-3.5" />
+              <span>Settlement Certificate</span>
+            </button>
+          )}
           <FreshnessIndicator lastUpdated={lastUpdated} isSyncing={loading} onRefresh={load} />
           <StatusBadge status={tx.status} />
         </div>
@@ -494,6 +510,7 @@ export default function SellerTransactionPage() {
           try {
             const res = await fetch(`/api/transactions/${tx.id}/multisig`, {
               method: 'POST',
+              credentials: 'include',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({ step }),
             });

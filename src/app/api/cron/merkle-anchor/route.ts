@@ -61,3 +61,7 @@ export async function POST(request: NextRequest) {
     return Response.json({ error: err.message || 'Failed to anchor Merkle audit batch' }, { status: 500 });
   }
 }
+
+export async function GET(request: NextRequest) {
+  return POST(request);
+}

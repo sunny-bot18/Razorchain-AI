@@ -65,6 +65,7 @@ export default function Nav() {
     try {
       const res = await fetch('/api/auth', {
         method: 'POST',
+        credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: emailMap[targetRole], password: 'password123', action: 'login' }),
       });
@@ -167,13 +168,14 @@ export default function Nav() {
               </button>
             </>
           ) : (
-            !loadError && (
-              <div className="flex items-center gap-3">
-                <span className="hidden text-sm text-zinc-500 sm:block">
-                  Loading…
-                </span>
-              </div>
-            )
+            <div className="flex items-center gap-3">
+              <Link
+                href="/login"
+                className="rounded-md border border-blue-500/30 bg-blue-500/20 px-3 py-1.5 text-sm font-medium text-blue-300 hover:bg-blue-500/30 transition-colors"
+              >
+                Sign In
+              </Link>
+            </div>
           )}
         </div>
       </div>

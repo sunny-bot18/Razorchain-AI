@@ -130,6 +130,7 @@ function AdminDashboardContent() {
     try {
       const response = await fetch(`/api/users/${user.id}/role`, {
         method: 'POST',
+        credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ role }),
       });
@@ -150,6 +151,7 @@ function AdminDashboardContent() {
     try {
       const response = await fetch(`/api/users/${tombstoningUser.id}/tombstone`, {
         method: 'POST',
+        credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ reason: tombstoneReason }),
       });

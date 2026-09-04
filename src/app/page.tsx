@@ -41,7 +41,7 @@ export default function Home() {
     setSeeding(true);
     setSeedError(null);
     try {
-      const res = await fetch('/api/seed', { method: 'POST' });
+      const res = await fetch('/api/seed', { method: 'POST', credentials: 'include' });
       if (!res.ok) {
         let msg = 'Failed to seed demo data';
         try {

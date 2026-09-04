@@ -113,6 +113,7 @@ export default function CreateTransaction() {
 
       const res = await fetch('/api/transactions', {
         method: 'POST',
+        credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
       });
@@ -141,6 +142,7 @@ export default function CreateTransaction() {
         }));
         await fetch(`/api/transactions/${txId}/milestones`, {
           method: 'POST',
+          credentials: 'include',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ milestones: milestonePayload }),
         });

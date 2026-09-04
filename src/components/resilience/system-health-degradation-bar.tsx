@@ -235,6 +235,7 @@ export function SystemHealthDegradationBar({
         if (targetOrderId) {
           const res = await fetch(`/api/transactions/${targetOrderId}/manual-vision-triage`, {
             method: 'POST',
+            credentials: 'include',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               decision: 'APPROVE',
@@ -253,6 +254,7 @@ export function SystemHealthDegradationBar({
         if (targetOrderId) {
           const res = await fetch(`/api/transactions/${targetOrderId}/consignee-attestation`, {
             method: 'POST',
+            credentials: 'include',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               signatoryName: consigneeSignatory,
@@ -270,6 +272,7 @@ export function SystemHealthDegradationBar({
       } else if (type === 'razorpay_nodal') {
         const res = await fetch('/api/admin/settlement-batch', {
           method: 'POST',
+          credentials: 'include',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             orderIds: targetOrderId ? [targetOrderId] : undefined,
