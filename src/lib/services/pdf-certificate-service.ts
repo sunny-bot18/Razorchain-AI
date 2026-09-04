@@ -257,8 +257,8 @@ export function generateSettlementCertificatePdf(cert: SettlementCertificate): U
   // Page numbering and security tag
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(7);
-  doc.setTextColor(148, 163, 184);
-  doc.text(`Page 1 of 1 · razorchain.ai · Hash: ${cert.hmacSignature.slice(0, 12)}...`, margin, pageHeight - 8);
+  const sigHash = cert.hmacSignature ? cert.hmacSignature.slice(0, 12) : '0x000000000000';
+  doc.text(`Page 1 of 1 · razorchain.ai · Hash: ${sigHash}...`, margin, pageHeight - 8);
 
   const arrayBuffer = doc.output('arraybuffer');
   return new Uint8Array(arrayBuffer);

@@ -12,7 +12,9 @@ import { CryptographicShreddingService } from '@/lib/services/cryptographic-shre
 import { ensureDatabaseInitialized } from '@/lib/db/init-db';
 import { findTransactionByIdOrNumber } from '@/lib/db/transaction-utils';
 
-const UPLOAD_ROOT = path.join(process.cwd(), 'uploads');
+import os from 'os';
+
+const UPLOAD_ROOT = path.join(os.tmpdir(), 'razorchain-uploads');
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
 
 function isValidFileType(type: string): boolean {
@@ -96,7 +98,11 @@ export async function POST(
     }
 
     const uploadDir = path.join(UPLOAD_ROOT, txUuid);
-    await mkdir(uploadDir, { recursive: true });
+    try {
+      await mkdir(uploadDir, { recursive: true });
+    } catch (mkdirErr) {
+      console.warn('[Documents] Failed to create upload directory (non-fatal):', mkdirErr);
+    }
 
     const savedDocuments = [];
     const errors = [];
@@ -161,7 +167,11 @@ export async function POST(
         continue;
       }
       const filePath = path.join(uploadDir, `${crypto.randomUUID()}-${safeName}`);
-      await writeFile(filePath, buffer);
+      try {
+        await writeFile(filePath, buffer);
+      } catch (writeErr) {
+        console.warn('[Documents] Failed to write file to disk (non-fatal, backed by DB):', writeErr);
+      }
 
       const dekKeyId = CryptographicShreddingService.generateDEK(filePath);
 
@@ -183,6 +193,7 @@ export async function POST(
             phash: forensics.phash,
             exif: forensics.exif,
             flags: forensics.flags,
+            contentBase64: buffer.toString('base64'),
             analyzedAt: new Date().toISOString(),
           },
         })
@@ -270,6 +281,7 @@ export async function POST(
     }, { status: 201 });
   } catch (error) {
     console.error('Documents POST error:', error);
-    return Response.json({ error: 'Failed to upload documents' }, { status: 500 });
+    const msg = error instanceof Error ? error.message : 'Failed to upload documents';
+    return Response.json({ error: msg }, { status: 500 });
   }
 }

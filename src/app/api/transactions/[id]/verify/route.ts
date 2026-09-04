@@ -1,6 +1,7 @@
 import { type NextRequest } from 'next/server';
 import { eq } from 'drizzle-orm';
-import { readFile } from 'fs/promises';
+import { readFile, writeFile, mkdir } from 'fs/promises';
+import path from 'path';
 import { db } from '@/lib/db';
 import * as schema from '@/lib/db/schema';
 import { canAccessTransaction, getUser } from '@/lib/auth';
@@ -141,8 +142,21 @@ export async function POST(
       let buffer: Buffer | undefined;
       try {
         buffer = await readFile(doc.filePath);
-      } catch (err) {
-        console.error(`Failed to read file ${doc.filePath}:`, err);
+      } catch {
+        // Resilient fallback: rehydrate from DB forensicMetadata.contentBase64 if serverless instance has no local file
+        const meta = doc.forensicMetadata as Record<string, unknown> | null;
+        if (meta?.contentBase64 && typeof meta.contentBase64 === 'string') {
+          try {
+            buffer = Buffer.from(meta.contentBase64, 'base64');
+            await mkdir(path.dirname(doc.filePath), { recursive: true });
+            await writeFile(doc.filePath, buffer);
+          } catch (writeErr) {
+            console.warn('[Verify] Could not cache rehydrated buffer to disk (non-fatal):', writeErr);
+          }
+        }
+        if (!buffer) {
+          console.warn(`[Verify] Could not read file ${doc.filePath} and no base64 content was found in database.`);
+        }
       }
       visionInput.push({
         filePath: doc.filePath,

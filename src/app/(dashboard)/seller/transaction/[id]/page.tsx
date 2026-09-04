@@ -265,6 +265,9 @@ export default function SellerTransactionPage() {
       const res = await fetch(`/api/transactions/${id}/documents`, { method: 'POST', body });
       const result = await res.json();
       if (!res.ok) throw new Error(result.error || 'Upload failed');
+      if (result.errors && result.errors.length > 0 && result.uploadedCount === 0) {
+        throw new Error(result.errors[0]?.error || 'Document validation failed');
+      }
       setFiles([]);
       setNotice(
         `${result.uploadedCount} file${result.uploadedCount !== 1 ? 's' : ''} uploaded successfully. The buyer can now run verification.`,

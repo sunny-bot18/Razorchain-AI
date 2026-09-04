@@ -9,7 +9,9 @@ import { computeSha256 } from '@/lib/utils/document-forensics';
 import { ensureDatabaseInitialized } from '@/lib/db/init-db';
 import { findTransactionByIdOrNumber } from '@/lib/db/transaction-utils';
 
-const UPLOAD_ROOT = path.join(process.cwd(), 'uploads');
+import os from 'os';
+
+const UPLOAD_ROOT = path.join(os.tmpdir(), 'razorchain-evidence');
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -74,9 +76,17 @@ export async function POST(request: NextRequest, { params }: Params) {
 
     // Save file on disk
     const txDir = path.join(UPLOAD_ROOT, txUuid, 'disputes');
-    await mkdir(txDir, { recursive: true });
+    try {
+      await mkdir(txDir, { recursive: true });
+    } catch (mkdirErr) {
+      console.warn('[Evidence] mkdir warning (non-fatal):', mkdirErr);
+    }
     const storedPath = path.join(txDir, `${Date.now()}_${fileName}`);
-    await writeFile(storedPath, buffer);
+    try {
+      await writeFile(storedPath, buffer);
+    } catch (writeErr) {
+      console.warn('[Evidence] writeFile warning (non-fatal, backed by DB):', writeErr);
+    }
 
     // Insert into documents table
     const [doc] = await db
@@ -95,6 +105,7 @@ export async function POST(request: NextRequest, { params }: Params) {
           description,
           submittedBy: user.email,
           digestAlgorithm: 'SHA-256',
+          contentBase64: buffer.toString('base64'),
         },
       })
       .returning();

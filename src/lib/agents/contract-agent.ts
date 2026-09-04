@@ -81,7 +81,7 @@ Extract the following fields:
 
 export class ContractAgent extends BaseAgent<TransactionInput, ContractData> {
   name = 'ContractAgent';
-  model = 'gemini-3.1-flash-lite-preview';
+  model = 'gemini-2.5-flash';
 
   private fallbackExtract(input: TransactionInput): ContractData {
     return {
