@@ -77,9 +77,10 @@ export async function POST(
 
     const txUuid = transaction.id;
 
-    if (!['DELIVERY_PENDING', 'VERIFICATION_FAILED'].includes(transaction.status)) {
+    const TERMINAL_STATUSES = ['SETTLED', 'CANCELLED', 'REFUNDED'];
+    if (TERMINAL_STATUSES.includes(transaction.status)) {
       return Response.json(
-        { error: `Cannot upload documents when transaction is ${transaction.status}` },
+        { error: `Cannot upload documents when transaction is already ${transaction.status}` },
         { status: 409 }
       );
     }
@@ -245,8 +246,8 @@ export async function POST(
           console.warn('[Documents] Fraud alert webhook failed (non-fatal):', wErr);
         }
       } else {
-        // Normal upload path
-        if (transaction.status === 'DELIVERY_PENDING' || transaction.status === 'VERIFICATION_FAILED') {
+        // Normal upload path: transition to VERIFICATION_PENDING upon document upload
+        if (['DELIVERY_PENDING', 'IN_TRANSIT_UNVERIFIED', 'VERIFICATION_FAILED'].includes(transaction.status)) {
           await db.update(schema.transactions).set({ status: 'VERIFICATION_PENDING', updatedAt: new Date() }).where(eq(schema.transactions.id, txUuid));
         }
         await db.insert(schema.auditLogs).values({

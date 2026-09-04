@@ -48,9 +48,17 @@ export async function POST(
     const lng = gpsCoordinates?.longitude ?? 72.8777;
     const accuracy = gpsCoordinates?.accuracy ?? 10.5;
 
-    // 1. Update transaction carrierStatus and status to VERIFICATION_PENDING
-    const nextStatus = transaction.status === "DELIVERY_PENDING" || transaction.status === "IN_TRANSIT_UNVERIFIED"
-      ? "VERIFICATION_PENDING"
+    // 1. Only transition to VERIFICATION_PENDING if documents have already been uploaded.
+    // If no documents have been uploaded yet, keep status in DELIVERY_PENDING awaiting seller evidence.
+    const existingDocs = await db
+      .select({ id: schema.documents.id })
+      .from(schema.documents)
+      .where(eq(schema.documents.transactionId, txUuid))
+      .limit(1);
+
+    const hasDocs = existingDocs.length > 0;
+    const nextStatus = (transaction.status === "DELIVERY_PENDING" || transaction.status === "IN_TRANSIT_UNVERIFIED")
+      ? (hasDocs ? "VERIFICATION_PENDING" : "DELIVERY_PENDING")
       : transaction.status;
 
     await db

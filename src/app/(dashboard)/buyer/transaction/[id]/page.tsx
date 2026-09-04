@@ -1467,12 +1467,33 @@ export default function BuyerTransactionDetail() {
         status={status}
       />
 
-      {/* AI Verification Action button for pending state */}
-      {status === 'VERIFICATION_PENDING' && (
+      {/* Informational banner when awaiting delivery documents */}
+      {(status === 'DELIVERY_PENDING' || (status === 'VERIFICATION_PENDING' && (!data.documents || data.documents.length === 0))) && (
+        <div className="flex flex-wrap items-center justify-between gap-4 rounded-xl border border-amber-500/30 bg-amber-500/10 p-4">
+          <div className="flex items-center gap-3">
+            <Clock className="h-5 w-5 text-amber-400 shrink-0" />
+            <div>
+              <p className="text-sm font-medium text-amber-200">Awaiting Evidence Documents from Seller</p>
+              <p className="text-xs text-zinc-300">
+                The seller must upload delivery evidence (such as delivery challan, Lorry Receipt, or proof of delivery) before the AI verification engine can run.
+              </p>
+            </div>
+          </div>
+          <span className="rounded-md border border-amber-500/40 bg-amber-500/20 px-3 py-1 text-xs font-semibold text-amber-300">
+            Awaiting Seller Upload
+          </span>
+        </div>
+      )}
+
+      {/* AI Verification Action button: ONLY shown when documents are actually uploaded */}
+      {status === 'VERIFICATION_PENDING' && Boolean(data.documents && data.documents.length > 0) && (
         <div className="flex flex-wrap items-center justify-between gap-4 rounded-xl border border-blue-500/30 bg-blue-500/10 p-4">
-          <p className="text-sm text-zinc-300">
-            Documents received. Run the AI verification engine to evaluate delivery challan against the contract.
-          </p>
+          <div className="flex items-center gap-3">
+            <Sparkles className="h-5 w-5 text-blue-400 shrink-0" />
+            <p className="text-sm text-zinc-300">
+              {data.documents?.length} document{data.documents?.length === 1 ? '' : 's'} received. Run the AI verification engine to evaluate delivery challan against the contract.
+            </p>
+          </div>
           <button
             onClick={() => runAction('verify')}
             disabled={acting !== null}

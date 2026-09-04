@@ -383,7 +383,7 @@ export default function SellerTransactionPage() {
     );
 
   const { transaction: tx } = data;
-  const canUpload = ['DELIVERY_PENDING', 'VERIFICATION_PENDING', 'VERIFICATION_FAILED'].includes(tx.status);
+  const canUpload = !['SETTLED', 'CANCELLED', 'REFUNDED'].includes(tx.status);
   const requiredGuides = getRequiredGuides(data.contract?.requiredChecks);
 
   return (

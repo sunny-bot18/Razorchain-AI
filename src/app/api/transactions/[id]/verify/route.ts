@@ -105,8 +105,16 @@ export async function POST(
       .where(eq(schema.documents.transactionId, txUuid));
 
     if (documentRows.length === 0) {
+      if (transaction.status === 'VERIFICATION_PENDING') {
+        try {
+          await db
+            .update(schema.transactions)
+            .set({ status: 'DELIVERY_PENDING', updatedAt: new Date() })
+            .where(eq(schema.transactions.id, txUuid));
+        } catch {}
+      }
       return Response.json(
-        { error: 'No documents uploaded for verification' },
+        { error: 'No documents uploaded for verification. The seller must upload delivery evidence before AI verification can proceed.' },
         { status: 400 }
       );
     }

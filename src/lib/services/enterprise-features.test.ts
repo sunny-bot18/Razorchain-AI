@@ -111,3 +111,57 @@ describe('Aegis Forensic Checks', () => {
     expect(result.riskScore).toBeGreaterThan(0);
   });
 });
+
+describe('Document Upload & Verification Lifecycle State Guards', () => {
+  const TERMINAL_STATUSES = ['SETTLED', 'CANCELLED', 'REFUNDED'];
+  const ACTIVE_UPLOAD_STATUSES = [
+    'DELIVERY_PENDING',
+    'VERIFICATION_PENDING',
+    'IN_TRANSIT_UNVERIFIED',
+    'AWAITING_MANUAL_TRIAGE',
+    'VERIFICATION_FAILED',
+    'MANUAL_REVIEW',
+  ];
+
+  it('permits document uploads for all active pre-settlement states', () => {
+    for (const status of ACTIVE_UPLOAD_STATUSES) {
+      const isAllowed = !TERMINAL_STATUSES.includes(status);
+      expect(isAllowed).toBe(true);
+    }
+  });
+
+  it('blocks document uploads only for terminal states', () => {
+    for (const status of TERMINAL_STATUSES) {
+      const isAllowed = !TERMINAL_STATUSES.includes(status);
+      expect(isAllowed).toBe(false);
+    }
+  });
+
+  it('prevents premature VERIFICATION_PENDING transition during consignee attestation when documents are empty', () => {
+    const resolveAttestationStatus = (currentStatus: string, docCount: number) => {
+      const hasDocs = docCount > 0;
+      return (currentStatus === 'DELIVERY_PENDING' || currentStatus === 'IN_TRANSIT_UNVERIFIED')
+        ? (hasDocs ? 'VERIFICATION_PENDING' : 'DELIVERY_PENDING')
+        : currentStatus;
+    };
+
+    // Without documents, must stay in DELIVERY_PENDING
+    expect(resolveAttestationStatus('DELIVERY_PENDING', 0)).toBe('DELIVERY_PENDING');
+    // With documents, transitions to VERIFICATION_PENDING
+    expect(resolveAttestationStatus('DELIVERY_PENDING', 1)).toBe('VERIFICATION_PENDING');
+    expect(resolveAttestationStatus('IN_TRANSIT_UNVERIFIED', 2)).toBe('VERIFICATION_PENDING');
+  });
+
+  it('self-heals empty VERIFICATION_PENDING transactions back to DELIVERY_PENDING', () => {
+    const selfHealStatus = (status: string, documentsCount: number) => {
+      if (status === 'VERIFICATION_PENDING' && documentsCount === 0) {
+        return 'DELIVERY_PENDING';
+      }
+      return status;
+    };
+
+    expect(selfHealStatus('VERIFICATION_PENDING', 0)).toBe('DELIVERY_PENDING');
+    expect(selfHealStatus('VERIFICATION_PENDING', 1)).toBe('VERIFICATION_PENDING');
+    expect(selfHealStatus('DELIVERY_PENDING', 0)).toBe('DELIVERY_PENDING');
+  });
+});

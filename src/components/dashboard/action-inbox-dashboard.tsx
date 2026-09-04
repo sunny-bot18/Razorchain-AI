@@ -77,6 +77,7 @@ export interface DashboardTransaction {
   secondApproverId?: string | null;
   secondApprovedAt?: string | null;
   autoReleaseAt?: string | null;
+  documentsCount?: number;
   verificationConfidence?: number | null;
   forensicFlags?: string[];
 }
@@ -271,6 +272,7 @@ export function ActionInboxDashboard({
         setDrawerData({
           ...tx,
           ...data.transaction,
+          documentsCount: data.documents?.length || 0,
           verificationConfidence: data.verificationResult?.confidence,
           forensicFlags: data.securityCheck?.flags || [],
         });
@@ -888,7 +890,7 @@ export function ActionInboxDashboard({
                   );
                 })()}
 
-                {effectiveRole === 'BUYER' && drawerData.status === 'VERIFICATION_PENDING' && (
+                {effectiveRole === 'BUYER' && drawerData.status === 'VERIFICATION_PENDING' && (drawerData.documentsCount ?? 1) > 0 && (
                   <button
                     disabled={acting !== null || viewAsRole !== null}
                     onClick={() => handleDrawerAction('verify')}

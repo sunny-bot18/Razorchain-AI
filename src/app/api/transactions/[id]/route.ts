@@ -56,6 +56,21 @@ export async function GET(
       db.select().from(schema.tradeCreditPledges).where(eq(schema.tradeCreditPledges.transactionId, txUuid)).catch(() => []),
     ]);
 
+    // Self-healing: if transaction was marked as VERIFICATION_PENDING but has 0 uploaded documents,
+    // revert status to DELIVERY_PENDING so the seller can upload delivery evidence and the buyer
+    // is not prompted to verify empty evidence.
+    if (transaction.status === 'VERIFICATION_PENDING' && documents.length === 0) {
+      try {
+        await db
+          .update(schema.transactions)
+          .set({ status: 'DELIVERY_PENDING', updatedAt: new Date() })
+          .where(eq(schema.transactions.id, txUuid));
+        transaction.status = 'DELIVERY_PENDING';
+      } catch (healErr) {
+        console.warn('[Transaction GET] Self-healing to DELIVERY_PENDING failed (non-fatal):', healErr);
+      }
+    }
+
     // Fetch messages with sender info
     let messages: any[] = [];
     try {
