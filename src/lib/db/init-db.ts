@@ -143,6 +143,10 @@ export async function ensureDatabaseInitialized() {
           "document_type" text NOT NULL,
           "sha256" text,
           "forensic_metadata" jsonb,
+          "is_shredded" boolean DEFAULT false NOT NULL,
+          "shredded_at" timestamp,
+          "dek_key_id" text,
+          "shredded_reason" text,
           "uploaded_at" timestamp DEFAULT now() NOT NULL
         );
 
@@ -314,6 +318,77 @@ export async function ensureDatabaseInitialized() {
           "end_time" timestamp,
           "duration_ms" integer
         );
+      `);
+
+      // 2.5 Ensure all columns exist on pre-existing tables (safe idempotent schema patch)
+      await client.query(`
+        ALTER TABLE "documents" ADD COLUMN IF NOT EXISTS "sha256" text;
+        ALTER TABLE "documents" ADD COLUMN IF NOT EXISTS "forensic_metadata" jsonb;
+        ALTER TABLE "documents" ADD COLUMN IF NOT EXISTS "is_shredded" boolean DEFAULT false NOT NULL;
+        ALTER TABLE "documents" ADD COLUMN IF NOT EXISTS "shredded_at" timestamp;
+        ALTER TABLE "documents" ADD COLUMN IF NOT EXISTS "dek_key_id" text;
+        ALTER TABLE "documents" ADD COLUMN IF NOT EXISTS "shredded_reason" text;
+
+        ALTER TABLE "transactions" ADD COLUMN IF NOT EXISTS "transaction_number" text;
+        ALTER TABLE "transactions" ADD COLUMN IF NOT EXISTS "inspection_deadline" timestamp;
+        ALTER TABLE "transactions" ADD COLUMN IF NOT EXISTS "seller_grace_period_hours" integer DEFAULT 72 NOT NULL;
+        ALTER TABLE "transactions" ADD COLUMN IF NOT EXISTS "auto_release_at" timestamp;
+        ALTER TABLE "transactions" ADD COLUMN IF NOT EXISTS "seller_proof_deadline" timestamp;
+        ALTER TABLE "transactions" ADD COLUMN IF NOT EXISTS "partial_quantity_shipped" integer DEFAULT 0 NOT NULL;
+        ALTER TABLE "transactions" ADD COLUMN IF NOT EXISTS "partial_settlement_approved" boolean DEFAULT false NOT NULL;
+        ALTER TABLE "transactions" ADD COLUMN IF NOT EXISTS "tracking_number" text;
+        ALTER TABLE "transactions" ADD COLUMN IF NOT EXISTS "carrier" text;
+        ALTER TABLE "transactions" ADD COLUMN IF NOT EXISTS "carrier_status" text;
+        ALTER TABLE "transactions" ADD COLUMN IF NOT EXISTS "carrier_verified_at" timestamp;
+        ALTER TABLE "transactions" ADD COLUMN IF NOT EXISTS "dynamic_discount_offered" boolean DEFAULT false NOT NULL;
+        ALTER TABLE "transactions" ADD COLUMN IF NOT EXISTS "dynamic_discount_rate" real;
+        ALTER TABLE "transactions" ADD COLUMN IF NOT EXISTS "dynamic_discount_amount" real;
+        ALTER TABLE "transactions" ADD COLUMN IF NOT EXISTS "dynamic_discount_accepted" boolean DEFAULT false NOT NULL;
+        ALTER TABLE "transactions" ADD COLUMN IF NOT EXISTS "is_factored" boolean DEFAULT false NOT NULL;
+        ALTER TABLE "transactions" ADD COLUMN IF NOT EXISTS "factoring_lender" text;
+        ALTER TABLE "transactions" ADD COLUMN IF NOT EXISTS "factoring_advance_amount" real;
+        ALTER TABLE "transactions" ADD COLUMN IF NOT EXISTS "currency" text DEFAULT 'INR' NOT NULL;
+        ALTER TABLE "transactions" ADD COLUMN IF NOT EXISTS "locked_fx_rate" real;
+        ALTER TABLE "transactions" ADD COLUMN IF NOT EXISTS "hedged_amount" real;
+        ALTER TABLE "transactions" ADD COLUMN IF NOT EXISTS "fx_locked_at" timestamp;
+        ALTER TABLE "transactions" ADD COLUMN IF NOT EXISTS "requires_dual_approval" boolean DEFAULT false NOT NULL;
+        ALTER TABLE "transactions" ADD COLUMN IF NOT EXISTS "first_approver_id" uuid REFERENCES "users"("id");
+        ALTER TABLE "transactions" ADD COLUMN IF NOT EXISTS "first_approved_at" timestamp;
+        ALTER TABLE "transactions" ADD COLUMN IF NOT EXISTS "second_approver_id" uuid REFERENCES "users"("id");
+        ALTER TABLE "transactions" ADD COLUMN IF NOT EXISTS "second_approved_at" timestamp;
+        ALTER TABLE "transactions" ADD COLUMN IF NOT EXISTS "merkle_root" text;
+        ALTER TABLE "transactions" ADD COLUMN IF NOT EXISTS "merkle_anchor_tx" text;
+        ALTER TABLE "transactions" ADD COLUMN IF NOT EXISTS "merkle_anchored_at" timestamp;
+        ALTER TABLE "transactions" ADD COLUMN IF NOT EXISTS "virtual_account" jsonb;
+        ALTER TABLE "transactions" ADD COLUMN IF NOT EXISTS "net_adjusted_amount" real;
+        ALTER TABLE "transactions" ADD COLUMN IF NOT EXISTS "dispute_details" jsonb;
+
+        ALTER TABLE "contracts" ADD COLUMN IF NOT EXISTS "required_checks" text[] DEFAULT '{}' NOT NULL;
+        ALTER TABLE "contracts" ADD COLUMN IF NOT EXISTS "tolerances" jsonb;
+        ALTER TABLE "contracts" ADD COLUMN IF NOT EXISTS "parsed_conditions" jsonb;
+
+        ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "tax_id" text;
+        ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "kyb_status" text DEFAULT 'PENDING' NOT NULL;
+        ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "kyb_cleared_at" timestamp;
+        ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "ubo_details" jsonb;
+        ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "corporate_registration" jsonb;
+        ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "is_tombstoned" boolean DEFAULT false NOT NULL;
+        ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "tombstoned_at" timestamp;
+        ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "shredded_at" timestamp;
+        ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "tombstone_reason" text;
+
+        ALTER TABLE "verification_results" ADD COLUMN IF NOT EXISTS "failed_checks" text[] DEFAULT '{}' NOT NULL;
+        ALTER TABLE "verification_results" ADD COLUMN IF NOT EXISTS "extracted_data" jsonb;
+        ALTER TABLE "verification_results" ADD COLUMN IF NOT EXISTS "reason" text;
+
+        ALTER TABLE "payment_reservations" ADD COLUMN IF NOT EXISTS "is_simulated" boolean DEFAULT false NOT NULL;
+        ALTER TABLE "payment_reservations" ADD COLUMN IF NOT EXISTS "metadata" jsonb;
+
+        ALTER TABLE "payment_milestones" ADD COLUMN IF NOT EXISTS "required_documents" text[] DEFAULT '{}' NOT NULL;
+        ALTER TABLE "payment_milestones" ADD COLUMN IF NOT EXISTS "fulfilled_quantity" integer DEFAULT 0 NOT NULL;
+        ALTER TABLE "payment_milestones" ADD COLUMN IF NOT EXISTS "inspection_deadline" timestamp;
+        ALTER TABLE "payment_milestones" ADD COLUMN IF NOT EXISTS "auto_release_at" timestamp;
+        ALTER TABLE "payment_milestones" ADD COLUMN IF NOT EXISTS "settled_at" timestamp;
       `);
 
       // 3. Performance Indexes

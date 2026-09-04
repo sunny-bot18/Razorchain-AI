@@ -90,7 +90,17 @@ export async function POST(
       .limit(1);
 
     const documentRows = await db
-      .select()
+      .select({
+        id: schema.documents.id,
+        transactionId: schema.documents.transactionId,
+        fileName: schema.documents.fileName,
+        fileType: schema.documents.fileType,
+        filePath: schema.documents.filePath,
+        fileSize: schema.documents.fileSize,
+        documentType: schema.documents.documentType,
+        sha256: schema.documents.sha256,
+        forensicMetadata: schema.documents.forensicMetadata,
+      })
       .from(schema.documents)
       .where(eq(schema.documents.transactionId, txUuid));
 

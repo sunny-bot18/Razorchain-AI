@@ -155,7 +155,7 @@ function mimeTypeFromFileName(fileName: string): string {
 
 export class VisionAgent extends BaseAgent<DocumentInput[], VisionOutput> {
   name = 'VisionAgent';
-  model = 'gemini-3.1-flash-lite-preview';
+  model = 'gemini-2.5-flash';
 
   protected async run(input: DocumentInput[]): Promise<VisionOutput> {
     if (!geminiKeyPool.isConfigured()) {
