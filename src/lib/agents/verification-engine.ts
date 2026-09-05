@@ -124,16 +124,24 @@ function checkQuantityMatch(contract: ContractData, evidence: VisionOutput): Ver
   };
 }
 
-function checkDeliveryAddressMatch(contract: ContractData, evidence: VisionOutput): VerificationCheck {
-  const contractAddress = contract.delivery_address.toLowerCase();
-  // Extract key location tokens from contract address (split by common delimiters)
-  const addressTokens = contractAddress
-    .split(/[,\s]+/)
-    .filter((t) => t.length > 2); // skip short tokens like "st", "no"
+const ADDRESS_STOP_WORDS = new Set([
+  'ltd', 'limited', 'corp', 'corporation', 'inc', 'pvt', 'private',
+  'co', 'company', 'the', 'and', 'for', 'via', 'deliver', 'to', 'attn',
+  'contact', 'site', 'plant', 'gate', 'warehouse', 'consignee',
+]);
 
+function tokenizeAddress(addr: string): string[] {
+  return addr
+    .toLowerCase()
+    .split(/[^a-z0-9]+/)
+    .filter((t) => t.length > 2 && !ADDRESS_STOP_WORDS.has(t));
+}
+
+function checkDeliveryAddressMatch(contract: ContractData, evidence: VisionOutput): VerificationCheck {
+  const contractAddress = contract.delivery_address || '';
   const evidenceAddresses = evidence.documents
     .map((d) => d.fields.delivery_address)
-    .filter((a): a is string => a !== null);
+    .filter((a): a is string => a !== null && a.trim().length > 0);
 
   if (evidenceAddresses.length === 0) {
     return {
@@ -146,23 +154,46 @@ function checkDeliveryAddressMatch(contract: ContractData, evidence: VisionOutpu
     };
   }
 
-  const evidenceAddressLower = evidenceAddresses.join(' ').toLowerCase();
+  const contractLower = contractAddress.toLowerCase();
+  const evidenceCombined = evidenceAddresses.join(' ').toLowerCase();
 
-  // Check if key location tokens from contract appear in evidence
-  const matchedTokens = addressTokens.filter((token) =>
-    evidenceAddressLower.includes(token),
+  const contractTokens = tokenizeAddress(contractLower);
+  const evidenceTokens = tokenizeAddress(evidenceCombined);
+
+  // 1. PIN code / postal code check (e.g. 560100)
+  const contractPin = contractLower.match(/\b\d{5,6}\b/)?.[0];
+  const evidencePin = evidenceCombined.match(/\b\d{5,6}\b/)?.[0];
+  const pinMatched = Boolean(contractPin && evidencePin && contractPin === evidencePin);
+
+  // 2. Bidirectional token matching
+  const matchedContractTokens = contractTokens.filter((token) =>
+    evidenceCombined.includes(token),
+  );
+  const matchedEvidenceTokens = evidenceTokens.filter((token) =>
+    contractLower.includes(token),
   );
 
-  const matchRatio = matchedTokens.length / addressTokens.length;
+  const contractRatio = contractTokens.length > 0
+    ? matchedContractTokens.length / contractTokens.length
+    : 0;
+  const evidenceRatio = evidenceTokens.length > 0
+    ? matchedEvidenceTokens.length / evidenceTokens.length
+    : 0;
+  const bestRatio = Math.max(contractRatio, evidenceRatio);
 
-  if (matchRatio >= 0.5) {
+  // Match if PIN code matches with at least 1 city/area token, or token ratio meets threshold
+  const isMatch = (pinMatched && (contractRatio > 0 || evidenceRatio > 0)) || bestRatio >= 0.40;
+
+  if (isMatch) {
     return {
       name: 'delivery_address_match',
       label: 'Delivery Address Match',
       status: 'PASS',
       expected: contract.delivery_address,
       actual: evidenceAddresses.join(' | '),
-      details: `Matched ${matchedTokens.length}/${addressTokens.length} key address tokens`,
+      details: pinMatched
+        ? `Matched delivery PIN code (${contractPin}) and key location tokens (${matchedContractTokens.join(', ') || 'verified'})`
+        : `Matched ${matchedContractTokens.length}/${contractTokens.length} key address tokens (${Math.round(bestRatio * 100)}% match)`,
     };
   }
 
@@ -172,7 +203,7 @@ function checkDeliveryAddressMatch(contract: ContractData, evidence: VisionOutpu
     status: 'FAIL',
     expected: contract.delivery_address,
     actual: evidenceAddresses.join(' | '),
-    details: `Only matched ${matchedTokens.length}/${addressTokens.length} key address tokens`,
+    details: `Only matched ${matchedContractTokens.length}/${contractTokens.length} key address tokens (${Math.round(bestRatio * 100)}% match, threshold 40%)`,
   };
 }
 

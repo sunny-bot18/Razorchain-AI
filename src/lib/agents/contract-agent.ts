@@ -81,7 +81,7 @@ Extract the following fields:
 
 export class ContractAgent extends BaseAgent<TransactionInput, ContractData> {
   name = 'ContractAgent';
-  model = 'gemini-2.5-flash';
+  model = 'gemini-3.6-flash';
 
   private fallbackExtract(input: TransactionInput): ContractData {
     return {
@@ -117,8 +117,8 @@ export class ContractAgent extends BaseAgent<TransactionInput, ContractData> {
           `Amount: ${input.amount}`,
           `Delivery Address: ${input.deliveryAddress}`,
           `Expected Delivery Date: ${input.expectedDeliveryDate}`,
-          `Product Description: ${input.productDescription}`,
-          `Verification Conditions: ${input.verificationConditions.join(', ')}`,
+          `Product Description: ${input.productDescription || ''}`,
+          `Verification Conditions: ${(input.verificationConditions || []).join(', ')}`,
         ].join('\n');
 
         const result = await ai.models.generateContent({

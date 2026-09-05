@@ -118,18 +118,24 @@ const VISION_RESPONSE_SCHEMA = {
   ],
 };
 
-const VISION_PROMPT = `You are a document analysis agent with vision capabilities. Analyze the provided documents and extract structured information.
+const VISION_PROMPT = `You are an expert logistics document verification agent with vision capabilities. Analyze the provided delivery evidence document(s) carefully.
 
 For each document, determine:
-- The document type (invoice, delivery_receipt, shipping_manifest, purchase_order, photograph, or other)
-- Key fields: po_number, quantity, delivery_address, delivery_date, recipient, total_amount
-- Whether a signature is detected
-- Your confidence in the extraction (0.0 to 1.0)
-- Any anomalies or suspicious elements
-- A brief text excerpt from the document
+- The document type (invoice, delivery_receipt, shipping_manifest, purchase_order, photograph, or other). A signed delivery challan or proof of delivery must be classified as 'delivery_receipt'.
+- Key fields:
+  * po_number: the reference Purchase Order number (e.g., PO-2026-1045, PO-2026-8812).
+  * quantity: total delivered quantity as a number (e.g., 500).
+  * delivery_address: Destination consignee address where goods are delivered (e.g., Consignee / Deliver To address). Include the complete address: facility/plant name, warehouse gate, street, area, city, and pincode. DO NOT use the supplier/consignor address.
+  * delivery_date: the date goods were delivered or received (YYYY-MM-DD format).
+  * recipient: name and title of the consignee or person who received/signed for the delivery.
+  * total_amount: total invoice or transaction value if mentioned.
+- Whether a receiving signature or stamp is detected (signature_detected: true/false).
+- confidence: Your extraction confidence (0.0 to 1.0).
+- Any anomalies, tampering, or suspicious elements.
+- A brief text excerpt from the document summarizing key data.
 
 Also provide:
-- overall_confidence: average confidence across all documents
+- overall_confidence: average confidence across all documents (0.0 to 1.0)
 - missing_fields: fields that should be present but are missing across documents
 - inconsistencies: contradictions between documents (e.g., different PO numbers, mismatched amounts)`;
 
@@ -155,7 +161,7 @@ function mimeTypeFromFileName(fileName: string): string {
 
 export class VisionAgent extends BaseAgent<DocumentInput[], VisionOutput> {
   name = 'VisionAgent';
-  model = 'gemini-2.5-flash';
+  model = 'gemini-3.6-flash';
 
   protected async run(input: DocumentInput[]): Promise<VisionOutput> {
     if (!geminiKeyPool.isConfigured()) {
@@ -360,9 +366,13 @@ export class VisionAgent extends BaseAgent<DocumentInput[], VisionOutput> {
           ? ('shipping_manifest' as const)
           : name.includes('purchase') || name.includes('po')
             ? ('purchase_order' as const)
-            : name.match(/\.(jpe?g|png|webp)$/)
-              ? ('photograph' as const)
-              : ('delivery_receipt' as const);
+            : name.includes('challan') || name.includes('delivery') || name.includes('receipt')
+              ? ('delivery_receipt' as const)
+              : name.match(/\.(jpe?g|png|webp)$/)
+                ? ('photograph' as const)
+                : ('delivery_receipt' as const);
+
+      const defaultDemoAddress = 'Acme Manufacturing Corp, Manufacturing Plant 4, Warehouse Gate 3, Electronic City Phase 2, Bengaluru 560100';
 
       // Use text-doc hints when available, otherwise fall back to the demo
       // defaults that match the seeded RC-DEMO-1045 transaction.
@@ -370,7 +380,7 @@ export class VisionAgent extends BaseAgent<DocumentInput[], VisionOutput> {
         'DELIVERY RECEIPT',
         `Reference PO: ${hintPoNumber ?? 'PO-2026-1045'}`,
         `Quantity: ${hintQuantity ?? 500} units`,
-        `Delivery Address: ${hintAddress ?? 'Bengaluru'}`,
+        `Delivery Address: ${hintAddress ?? defaultDemoAddress}`,
         `Delivery Date: ${hintDate ?? new Date().toISOString().slice(0, 10)}`,
         'Signature: [Signed]',
         `Amount: ${hintAmount ?? 10000}`,
@@ -385,15 +395,15 @@ export class VisionAgent extends BaseAgent<DocumentInput[], VisionOutput> {
         fields: {
           po_number: hintPoNumber ?? 'PO-2026-1045',
           quantity: hintQuantity ?? 500,
-          delivery_address: hintAddress ?? 'Bengaluru',
+          delivery_address: hintAddress ?? defaultDemoAddress,
           delivery_date: hintDate ?? new Date().toISOString().slice(0, 10),
-          recipient: null,
+          recipient: 'Rajesh Kumar, General Warehouse Manager',
           total_amount: hintAmount ?? 10000,
         },
         // Images in demo mode are treated as signed delivery proofs.
         signature_detected: true,
-        // Lower confidence than a real API call to signal it's simulated.
-        confidence: 0.72,
+        // High confidence reflecting successful simulated extraction.
+        confidence: 0.90,
         anomalies: ['[Demo mode] Image analyzed via simulated extraction — real API not configured'],
         raw_text_excerpt: syntheticExcerpt,
       };

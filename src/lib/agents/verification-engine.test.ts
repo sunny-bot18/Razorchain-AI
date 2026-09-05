@@ -35,4 +35,68 @@ describe('settlement safety rules', () => {
     expect(result.data?.documents[0].fields.po_number).toBe('PO-2026-1045');
     expect(result.data?.documents[0].signature_detected).toBe(true);
   });
+
+  it('matches delivery challan consignee address against contract warehouse destination', () => {
+    const testContract = {
+      ...contract,
+      delivery_address: 'Warehouse 4, Electronic City, Bengaluru - 560100',
+    };
+    const testEvidence = {
+      documents: [{
+        fileName: '1_clean_delivery_challan.jpg',
+        document_type: 'delivery_receipt' as const,
+        fields: {
+          po_number: 'PO-2026-1045',
+          quantity: 500,
+          delivery_address: 'Acme Manufacturing Corp, Manufacturing Plant 4, Warehouse Gate 3, Electronic City Phase 2, Bengaluru 560100',
+          delivery_date: '2026-09-05',
+          recipient: 'Rajesh Kumar',
+          total_amount: 10000,
+        },
+        signature_detected: true,
+        confidence: 0.98,
+        anomalies: [],
+        raw_text_excerpt: '',
+      }],
+      overall_confidence: 0.98,
+      missing_fields: [],
+      inconsistencies: [],
+    };
+    const result = runVerification(testContract, testEvidence, 0.98);
+    const addressCheck = result.checks.find((c) => c.name === 'delivery_address_match');
+    expect(addressCheck?.status).toBe('PASS');
+    expect(result.failedChecks).not.toContain('delivery_address_match');
+  });
+
+  it('flags address mismatch when delivery site is fundamentally different', () => {
+    const testContract = {
+      ...contract,
+      delivery_address: 'Manufacturing Plant 4, Warehouse Gate 3, Electronic City Phase 2, Bengaluru 560100',
+    };
+    const testEvidence = {
+      documents: [{
+        fileName: 'wrong_site_challan.jpg',
+        document_type: 'delivery_receipt' as const,
+        fields: {
+          po_number: 'PO-2026-1045',
+          quantity: 500,
+          delivery_address: 'Industrial Sector 9, Hosur Road, Tamil Nadu',
+          delivery_date: '2026-09-05',
+          recipient: 'Rajesh Kumar',
+          total_amount: 10000,
+        },
+        signature_detected: true,
+        confidence: 0.98,
+        anomalies: [],
+        raw_text_excerpt: '',
+      }],
+      overall_confidence: 0.98,
+      missing_fields: [],
+      inconsistencies: [],
+    };
+    const result = runVerification(testContract, testEvidence, 0.98);
+    const addressCheck = result.checks.find((c) => c.name === 'delivery_address_match');
+    expect(addressCheck?.status).toBe('FAIL');
+    expect(result.failedChecks).toContain('delivery_address_match');
+  });
 });

@@ -120,6 +120,7 @@ export function SideBySideDocumentVerifier({
   const [activeFieldId, setActiveFieldId] = useState<string | null>(null);
   const [zoom, setZoom] = useState(1);
   const [showBoundingBoxes, setShowBoundingBoxes] = useState(true);
+  const [imageError, setImageError] = useState(false);
 
   const activeField = fields.find((f) => f.id === activeFieldId);
 
@@ -175,64 +176,79 @@ export function SideBySideDocumentVerifier({
         {/* Left Pane: Document Canvas & Interactive Bounding Boxes */}
         <div className="lg:col-span-7 relative flex items-center justify-center border-b lg:border-b-0 lg:border-r border-zinc-800 bg-zinc-950/90 p-6 overflow-hidden select-none">
           <div
-            className="relative transition-transform duration-200 w-full max-w-md aspect-[3/4] rounded-xl border border-zinc-700/80 bg-zinc-900 shadow-2xl flex flex-col p-6 overflow-hidden"
+            className="relative transition-transform duration-200 w-full max-w-md aspect-[3/4] rounded-xl border border-zinc-700/80 bg-zinc-900 shadow-2xl flex flex-col overflow-hidden"
             style={{ transform: `scale(${zoom})` }}
           >
-            {/* Mock physical receipt document canvas texture */}
-            <div className="flex items-center justify-between border-b border-zinc-700 pb-3">
-              <div>
-                <span className="text-xs font-black uppercase tracking-widest text-zinc-300">
-                  DELIVERY CHALLAN & PROOF
-                </span>
-                <p className="text-[10px] text-zinc-500">Official Logistics Consignment</p>
+            {documentUrl && !imageError ? (
+              <div className="relative w-full h-full flex items-center justify-center bg-zinc-950 p-2 overflow-hidden">
+                <img
+                  src={documentUrl}
+                  alt={documentName}
+                  onError={() => setImageError(true)}
+                  className="w-full h-full object-contain rounded-lg"
+                />
               </div>
-              <div className="text-right">
-                <span className="text-[10px] font-mono text-zinc-400">RC-ESCROW-2026</span>
-              </div>
-            </div>
-
-            {/* Document Body Lines with dynamic field values */}
-            <div className="mt-4 space-y-4 font-mono text-xs">
-              <div className="p-2 rounded bg-zinc-800/40">
-                <span className="text-[10px] text-zinc-500 uppercase">PO Reference:</span>
-                <p className="font-bold text-zinc-200">
-                  {fields.find((f) => f.id === 'po_number')?.extractedValue || 'PO-2026-8812'}
-                </p>
-              </div>
-
-              <div className="p-2 rounded bg-zinc-800/40">
-                <span className="text-[10px] text-zinc-500 uppercase">Delivered Quantity:</span>
-                <p className="font-bold text-zinc-200">
-                  {fields.find((f) => f.id === 'quantity')?.extractedValue || '500 units (5 cartons)'}
-                </p>
-              </div>
-
-              <div className="p-2 rounded bg-zinc-800/40">
-                <span className="text-[10px] text-zinc-500 uppercase">Destination Site:</span>
-                <p className="font-bold text-zinc-200 text-[11px]">
-                  {fields.find((f) => f.id === 'delivery_address')?.extractedValue || 'Warehouse 4, Electronic City, Bengaluru - 560100'}
-                </p>
-              </div>
-
-              <div className="p-2 rounded bg-zinc-800/40">
-                <span className="text-[10px] text-zinc-500 uppercase">Date & Time Received:</span>
-                <p className="font-bold text-zinc-200">
-                  {fields.find((f) => f.id === 'delivery_date')?.extractedValue || '2026-09-04 14:32 IST'}
-                </p>
-              </div>
-
-              <div className="mt-6 pt-3 border-t border-dashed border-zinc-700 flex items-center justify-between">
-                <div>
-                  <span className="text-[10px] text-zinc-500 uppercase">Consignee Signatory:</span>
-                  <p className="font-bold text-emerald-400 text-xs mt-0.5">
-                    {fields.find((f) => f.id === 'receiver_signature')?.extractedValue || 'Rajesh Kumar [Signed]'}
-                  </p>
+            ) : (
+              <div className="flex flex-col h-full p-6">
+                {/* Mock physical receipt document canvas texture */}
+                <div className="flex items-center justify-between border-b border-zinc-700 pb-3">
+                  <div>
+                    <span className="text-xs font-black uppercase tracking-widest text-zinc-300">
+                      DELIVERY CHALLAN & PROOF
+                    </span>
+                    <p className="text-[10px] text-zinc-500">Official Logistics Consignment</p>
+                  </div>
+                  <div className="text-right">
+                    <span className="text-[10px] font-mono text-zinc-400">
+                      {fields.find((f) => f.id === 'po_number')?.extractedValue || 'DELIVERY-DOC'}
+                    </span>
+                  </div>
                 </div>
-                <div className="h-10 w-24 rounded border border-emerald-500/40 bg-emerald-500/10 flex items-center justify-center text-[10px] font-mono text-emerald-300">
-                  [STAMP VERIFIED]
+
+                {/* Document Body Lines with dynamic field values */}
+                <div className="mt-4 space-y-4 font-mono text-xs">
+                  <div className="p-2 rounded bg-zinc-800/40">
+                    <span className="text-[10px] text-zinc-500 uppercase">PO Reference:</span>
+                    <p className="font-bold text-zinc-200">
+                      {fields.find((f) => f.id === 'po_number')?.extractedValue || '—'}
+                    </p>
+                  </div>
+
+                  <div className="p-2 rounded bg-zinc-800/40">
+                    <span className="text-[10px] text-zinc-500 uppercase">Delivered Quantity:</span>
+                    <p className="font-bold text-zinc-200">
+                      {fields.find((f) => f.id === 'quantity')?.extractedValue || '—'}
+                    </p>
+                  </div>
+
+                  <div className="p-2 rounded bg-zinc-800/40">
+                    <span className="text-[10px] text-zinc-500 uppercase">Destination Site:</span>
+                    <p className="font-bold text-zinc-200 text-[11px]">
+                      {fields.find((f) => f.id === 'delivery_address')?.extractedValue || '—'}
+                    </p>
+                  </div>
+
+                  <div className="p-2 rounded bg-zinc-800/40">
+                    <span className="text-[10px] text-zinc-500 uppercase">Date & Time Received:</span>
+                    <p className="font-bold text-zinc-200">
+                      {fields.find((f) => f.id === 'delivery_date')?.extractedValue || '—'}
+                    </p>
+                  </div>
+
+                  <div className="mt-6 pt-3 border-t border-dashed border-zinc-700 flex items-center justify-between">
+                    <div>
+                      <span className="text-[10px] text-zinc-500 uppercase">Consignee Signatory:</span>
+                      <p className="font-bold text-emerald-400 text-xs mt-0.5">
+                        {fields.find((f) => f.id === 'receiver_signature')?.extractedValue || '—'}
+                      </p>
+                    </div>
+                    <div className="h-10 w-24 rounded border border-emerald-500/40 bg-emerald-500/10 flex items-center justify-center text-[10px] font-mono text-emerald-300">
+                      [STAMP VERIFIED]
+                    </div>
+                  </div>
                 </div>
               </div>
-            </div>
+            )}
 
             {/* Bounding Box Overlays */}
             {showBoundingBoxes &&
