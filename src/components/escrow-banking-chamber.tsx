@@ -137,6 +137,11 @@ export default function EscrowBankingChamber({
   const isHighValue = amount >= 1_000_000 || requiresDualApproval;
   const isMultiSigGated = isHighValue && (!firstApproverId || !secondApproverId);
 
+  // Escrow funding and release controls are not applicable to the seller workspace
+  if (viewerRole === 'SELLER') {
+    return null;
+  }
+
   return (
     <div className="rounded-2xl border border-zinc-800 bg-gradient-to-b from-zinc-900 to-zinc-950 p-6 shadow-xl space-y-6">
       {/* Header */}
@@ -505,19 +510,6 @@ export default function EscrowBankingChamber({
                 </div>
               </div>
 
-              {viewerRole === 'SELLER' ? (
-                <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg bg-emerald-500/10 border border-emerald-500/20 p-3 text-xs text-emerald-300">
-                  <div className="flex items-center gap-2">
-                    <CheckCircle2 className="h-4 w-4 text-emerald-400 shrink-0" />
-                    <span>
-                      Delivery verified. Funds are held in escrow and will be automatically credited to your bank account upon Buyer release.
-                    </span>
-                  </div>
-                  <span className="font-mono font-bold text-emerald-400">
-                    Receivable: {formatINR(amount)}
-                  </span>
-                </div>
-              ) : (
                 <div className="flex justify-end pt-1">
                   <button
                     onClick={onExecutePayout}
@@ -535,7 +527,6 @@ export default function EscrowBankingChamber({
                     )}
                   </button>
                 </div>
-              )}
             </div>
           )}
 

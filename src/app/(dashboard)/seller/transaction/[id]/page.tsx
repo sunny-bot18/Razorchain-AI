@@ -25,7 +25,6 @@ import {
 } from 'lucide-react';
 import StatusBadge from '@/components/status-badge';
 import { formatDate, formatINR } from '@/lib/utils';
-import EscrowBankingChamber from '@/components/escrow-banking-chamber';
 import { MakerCheckerPanel } from '@/components/governance/maker-checker-panel';
 import { RiskSignalsPanel } from '@/components/risk/risk-signals-panel';
 import { FinancialAmount } from '@/components/ui/financial-amount';
@@ -516,21 +515,6 @@ export default function SellerTransactionPage() {
         </div>
       </section>
 
-      {/* ── Escrow Banking & Nodal Vault Suite ── */}
-      <EscrowBankingChamber
-        transactionId={tx.id}
-        transactionNumber={tx.transactionNumber}
-        amount={tx.amount}
-        currency="INR"
-        status={tx.status}
-        requiresDualApproval={tx.requiresDualApproval}
-        firstApproverId={tx.firstApproverId}
-        secondApproverId={tx.secondApproverId}
-        viewerRole="SELLER"
-        onReserve={async () => {}}
-        onExecutePayout={async () => {}}
-        acting={null}
-      />
 
       {/* ── Multi-Dimensional Risk & Behavior Signals Panel ── */}
       <RiskSignalsPanel
