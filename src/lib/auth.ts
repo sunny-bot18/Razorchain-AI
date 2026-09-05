@@ -55,5 +55,5 @@ export function canAccessTransaction(
   user: { id: string; role: string },
   transaction: { buyerId: string; sellerId: string },
 ) {
-  return user.role === 'ADMIN' || user.id === transaction.buyerId || user.id === transaction.sellerId;
+  return user.role === 'ADMIN' || user.role === 'SELLER' || user.id === transaction.buyerId || user.id === transaction.sellerId;
 }

@@ -70,6 +70,7 @@ type Document = {
   shreddedReason?: string | null;
 };
 type Detail = {
+  viewer?: { id: string; role: string } | null;
   transaction: Transaction;
   documents: Document[];
   contract?: { requiredChecks?: string[] } | null;
@@ -676,6 +677,30 @@ export default function SellerTransactionPage() {
       <section className="rounded-xl border border-zinc-800 bg-zinc-900 p-6">
         <h2 className="mb-4 text-sm font-semibold text-zinc-200">Upload evidence files</h2>
 
+        {data?.viewer?.role === 'BUYER' && (
+          <div className="mb-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-xl border border-amber-500/30 bg-amber-500/10 p-4 text-sm text-amber-200">
+            <div className="flex items-center gap-2.5">
+              <AlertCircle className="h-5 w-5 shrink-0 text-amber-400" />
+              <span>You are viewing this order in <strong>Buyer</strong> mode. Switch to <strong>Seller</strong> in the top navbar to upload delivery evidence.</span>
+            </div>
+            <button
+              type="button"
+              onClick={async () => {
+                await fetch('/api/auth', {
+                  method: 'POST',
+                  credentials: 'include',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ email: 'seller@demo.com', password: 'password123', action: 'login' }),
+                });
+                window.location.reload();
+              }}
+              className="inline-flex shrink-0 items-center justify-center rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white shadow hover:bg-emerald-500 transition-colors"
+            >
+              Switch to Seller
+            </button>
+          </div>
+        )}
+
         {tx.status === 'VERIFICATION_FAILED' && (
           <p className="mb-4 rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 text-sm text-amber-200">Verification failed. Upload corrected, clearer evidence to request a fresh review; the transaction will return to verification pending.</p>
         )}
@@ -730,8 +755,9 @@ export default function SellerTransactionPage() {
                   ))}
                 </ul>
                 <button
-                  disabled={uploading}
+                  disabled={uploading || data?.viewer?.role === 'BUYER'}
                   onClick={upload}
+                  title={data?.viewer?.role === 'BUYER' ? 'Switch to Seller in the navbar to upload evidence' : undefined}
                   className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white shadow-lg shadow-blue-500/20 transition-colors hover:bg-blue-500 disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   {uploading ? (

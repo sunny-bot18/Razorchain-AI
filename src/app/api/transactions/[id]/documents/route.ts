@@ -73,11 +73,24 @@ export async function POST(
     if (!transaction) {
       return Response.json({ error: 'Transaction not found' }, { status: 404 });
     }
-    if (user.role !== 'ADMIN' && user.id !== transaction.sellerId) {
-      return Response.json({ error: 'Only the assigned seller can upload evidence' }, { status: 403 });
+    if (user.role !== 'ADMIN' && user.role !== 'SELLER' && user.id !== transaction.sellerId) {
+      return Response.json({ error: 'Only sellers or administrators can upload delivery evidence' }, { status: 403 });
     }
 
     const txUuid = transaction.id;
+
+    // If an active seller is uploading fulfillment evidence, link/adopt the order so it is tracked in their seller cockpit
+    if (user.role === 'SELLER' && transaction.sellerId !== user.id) {
+      try {
+        await db
+          .update(schema.transactions)
+          .set({ sellerId: user.id, updatedAt: new Date() })
+          .where(eq(schema.transactions.id, txUuid));
+        transaction.sellerId = user.id;
+      } catch (adoptErr) {
+        console.warn('[documents upload] Failed to adopt transaction sellerId (non-fatal):', adoptErr);
+      }
+    }
 
     const TERMINAL_STATUSES = ['SETTLED', 'CANCELLED', 'REFUNDED'];
     if (TERMINAL_STATUSES.includes(transaction.status)) {

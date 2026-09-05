@@ -70,7 +70,18 @@ export default function CreateTransaction() {
           throw new Error(err.error || 'Failed to load sellers');
         }
         const data = await res.json();
-        setSellers(data.users || data.sellers || []);
+        const rawSellers: Seller[] = data.users || data.sellers || [];
+        // Sort Apex Precision Engineering Ltd (seller@demo.com) to the top
+        const sortedSellers = [...rawSellers].sort((a, b) => {
+          if (a.email === 'seller@demo.com') return -1;
+          if (b.email === 'seller@demo.com') return 1;
+          return a.name.localeCompare(b.name);
+        });
+        setSellers(sortedSellers);
+        if (sortedSellers.length > 0) {
+          const defaultSeller = sortedSellers.find((s) => s.email === 'seller@demo.com') || sortedSellers[0];
+          setForm((prev) => (prev.sellerId ? prev : { ...prev, sellerId: defaultSeller.id }));
+        }
       } catch (e) {
         setError(
           e instanceof Error

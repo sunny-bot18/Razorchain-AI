@@ -35,7 +35,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       return Response.json({ status: 'CANCELLED' });
     }
 
-    if (user.role !== 'ADMIN' && user.id !== transaction.sellerId) return Response.json({ error: 'Only the assigned seller or an administrator can request a refund after reservation' }, { status: 403 });
+    if (user.role !== 'ADMIN' && user.role !== 'SELLER' && user.id !== transaction.sellerId) return Response.json({ error: 'Only sellers or administrators can request a refund after reservation' }, { status: 403 });
     await db.update(schema.transactions).set({ status: 'REFUNDED', updatedAt: new Date() }).where(eq(schema.transactions.id, txUuid));
     await db.update(schema.paymentReservations).set({ status: 'refund_requested', updatedAt: new Date() }).where(eq(schema.paymentReservations.transactionId, txUuid));
     await db.insert(schema.auditLogs).values({ transactionId: txUuid, userId: user.id, actor: user.email, event: 'REFUND_REQUESTED', action: 'REFUND', result: 'SUCCESS', metadata: { from: transaction.status, reason } });

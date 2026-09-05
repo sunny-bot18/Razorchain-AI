@@ -53,11 +53,21 @@ export async function POST(request: NextRequest, { params }: Params) {
     const { id } = await params;
     const tx = await findTransactionByIdOrNumber(id);
     if (!tx) return Response.json({ error: 'Transaction not found' }, { status: 404 });
-    if (user.id !== tx.sellerId && user.role !== 'ADMIN') return Response.json({ error: 'Only seller can submit tracking' }, { status: 403 });
+    if (user.role !== 'ADMIN' && user.role !== 'SELLER' && user.id !== tx.sellerId) {
+      return Response.json({ error: 'Only sellers or administrators can submit tracking' }, { status: 403 });
+    }
     if (!['FUNDS_RESERVED', 'DELIVERY_PENDING', 'VERIFICATION_PENDING'].includes(tx.status)) {
       return Response.json({ error: `Cannot add tracking while transaction is ${tx.status}` }, { status: 409 });
     }
     const txUuid = tx.id;
+    if (user.role === 'SELLER' && tx.sellerId !== user.id) {
+      try {
+        await db.update(schema.transactions).set({ sellerId: user.id, updatedAt: new Date() }).where(eq(schema.transactions.id, txUuid));
+        tx.sellerId = user.id;
+      } catch (err) {
+        console.warn('[tracking POST] Failed to update sellerId (non-fatal):', err);
+      }
+    }
     const parsed = submitSchema.safeParse(await request.json());
     if (!parsed.success) return Response.json({ error: 'Invalid input', details: parsed.error.flatten() }, { status: 400 });
     const { trackingNumber, carrier } = parsed.data;

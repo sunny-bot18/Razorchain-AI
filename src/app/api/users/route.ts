@@ -1,5 +1,5 @@
 import { type NextRequest } from 'next/server';
-import { asc, eq } from 'drizzle-orm';
+import { and, asc, eq } from 'drizzle-orm';
 import { db } from '@/lib/db';
 import * as schema from '@/lib/db/schema';
 import { getUser } from '@/lib/auth';
@@ -35,8 +35,10 @@ export async function GET(request: NextRequest) {
       })
       .from(schema.users);
     const users = role
-      ? await query.where(eq(schema.users.role, role)).orderBy(asc(schema.users.name))
-      : await query.orderBy(asc(schema.users.name));
+      ? await query
+          .where(and(eq(schema.users.role, role), eq(schema.users.isTombstoned, false)))
+          .orderBy(asc(schema.users.name))
+      : await query.where(eq(schema.users.isTombstoned, false)).orderBy(asc(schema.users.name));
 
     return Response.json({ users });
   } catch (error) {
