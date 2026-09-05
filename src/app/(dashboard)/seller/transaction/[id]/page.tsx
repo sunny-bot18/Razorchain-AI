@@ -226,7 +226,12 @@ export default function SellerTransactionPage() {
         setData(null);
         throw new Error((await res.json()).error || 'Unable to load order');
       }
-      setData(await res.json());
+      const json = await res.json();
+      if (json.viewer?.role === 'BUYER') {
+        router.replace(`/buyer/transaction/${id}`);
+        return;
+      }
+      setData(json);
       setLastUpdated(new Date());
     } catch (e) {
       setData(null);
@@ -646,154 +651,133 @@ export default function SellerTransactionPage() {
         </div>
       </section>
 
-      {/* ── Document guide ── */}
-      <section className="rounded-xl border border-zinc-800 bg-zinc-900 p-6">
-        <div className="mb-5">
-          <h2 className="text-sm font-semibold text-zinc-200">
-            What to upload — {requiredGuides.length} document type{requiredGuides.length !== 1 ? 's' : ''} required
-          </h2>
-          <p className="mt-1 text-xs text-zinc-500">
-            Each card below is an example of the document format. Make sure every highlighted field is
-            clearly readable — the AI will verify each one against the contract.
-          </p>
-        </div>
-
-        <div
-          className={`grid gap-4 ${
-            requiredGuides.length === 1
-              ? 'max-w-sm'
-              : requiredGuides.length === 2
-              ? 'sm:grid-cols-2'
-              : 'sm:grid-cols-2 lg:grid-cols-3'
-          }`}
-        >
-          {requiredGuides.map((guide) => (
-            <DocGuideCard key={guide.key} guide={guide} />
-          ))}
-        </div>
-      </section>
-
-      {/* ── Upload area ── */}
-      <section className="rounded-xl border border-zinc-800 bg-zinc-900 p-6">
-        <h2 className="mb-4 text-sm font-semibold text-zinc-200">Upload evidence files</h2>
-
-        {data?.viewer?.role === 'BUYER' && (
-          <div className="mb-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-xl border border-amber-500/30 bg-amber-500/10 p-4 text-sm text-amber-200">
-            <div className="flex items-center gap-2.5">
-              <AlertCircle className="h-5 w-5 shrink-0 text-amber-400" />
-              <span>You are viewing this order in <strong>Buyer</strong> mode. Switch to <strong>Seller</strong> in the top navbar to upload delivery evidence.</span>
+      {/* ── Document guide & Upload area (Sellers & Administrators only) ── */}
+      {data?.viewer?.role !== 'BUYER' && (
+        <>
+          <section className="rounded-xl border border-zinc-800 bg-zinc-900 p-6">
+            <div className="mb-5">
+              <h2 className="text-sm font-semibold text-zinc-200">
+                What to upload — {requiredGuides.length} document type{requiredGuides.length !== 1 ? 's' : ''} required
+              </h2>
+              <p className="mt-1 text-xs text-zinc-500">
+                Each card below is an example of the document format. Make sure every highlighted field is
+                clearly readable — the AI will verify each one against the contract.
+              </p>
             </div>
-            <button
-              type="button"
-              onClick={async () => {
-                await fetch('/api/auth', {
-                  method: 'POST',
-                  credentials: 'include',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({ email: 'seller@demo.com', password: 'password123', action: 'login' }),
-                });
-                window.location.reload();
-              }}
-              className="inline-flex shrink-0 items-center justify-center rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white shadow hover:bg-emerald-500 transition-colors"
+
+            <div
+              className={`grid gap-4 ${
+                requiredGuides.length === 1
+                  ? 'max-w-sm'
+                  : requiredGuides.length === 2
+                  ? 'sm:grid-cols-2'
+                  : 'sm:grid-cols-2 lg:grid-cols-3'
+              }`}
             >
-              Switch to Seller
-            </button>
-          </div>
-        )}
+              {requiredGuides.map((guide) => (
+                <DocGuideCard key={guide.key} guide={guide} />
+              ))}
+            </div>
+          </section>
 
-        {tx.status === 'VERIFICATION_FAILED' && (
-          <p className="mb-4 rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 text-sm text-amber-200">Verification failed. Upload corrected, clearer evidence to request a fresh review; the transaction will return to verification pending.</p>
-        )}
+          {/* ── Upload area ── */}
+          <section className="rounded-xl border border-zinc-800 bg-zinc-900 p-6">
+            <h2 className="mb-4 text-sm font-semibold text-zinc-200">Upload evidence files</h2>
 
-        {canUpload ? (
-          <>
-            <label className="flex cursor-pointer flex-col items-center rounded-xl border border-dashed border-blue-500/40 bg-blue-500/5 px-6 py-10 text-center transition-colors hover:bg-blue-500/10">
-              <UploadCloud className="mb-3 h-8 w-8 text-blue-400" />
-              <span className="text-sm font-medium text-zinc-200">Click to select files</span>
-              <span className="mt-1.5 text-xs text-zinc-500">
-                Images (JPG, PNG), PDF, or .txt demo fixtures · Max 10 MB per file
-              </span>
-              <span className="mt-3 flex flex-wrap justify-center gap-2">
-                {requiredGuides.map((g) => {
-                  const Icon = g.icon;
-                  return (
-                    <span
-                      key={g.key}
-                      className="inline-flex items-center gap-1 rounded-full border border-zinc-700 bg-zinc-800 px-2.5 py-0.5 text-[11px] text-zinc-400"
+            {tx.status === 'VERIFICATION_FAILED' && (
+              <p className="mb-4 rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 text-sm text-amber-200">Verification failed. Upload corrected, clearer evidence to request a fresh review; the transaction will return to verification pending.</p>
+            )}
+
+            {canUpload ? (
+              <>
+                <label className="flex cursor-pointer flex-col items-center rounded-xl border border-dashed border-blue-500/40 bg-blue-500/5 px-6 py-10 text-center transition-colors hover:bg-blue-500/10">
+                  <UploadCloud className="mb-3 h-8 w-8 text-blue-400" />
+                  <span className="text-sm font-medium text-zinc-200">Click to select files</span>
+                  <span className="mt-1.5 text-xs text-zinc-500">
+                    Images (JPG, PNG), PDF, or .txt demo fixtures · Max 10 MB per file
+                  </span>
+                  <span className="mt-3 flex flex-wrap justify-center gap-2">
+                    {requiredGuides.map((g) => {
+                      const Icon = g.icon;
+                      return (
+                        <span
+                          key={g.key}
+                          className="inline-flex items-center gap-1 rounded-full border border-zinc-700 bg-zinc-800 px-2.5 py-0.5 text-[11px] text-zinc-400"
+                        >
+                          <Icon className="h-3 w-3" />
+                          {g.label}
+                        </span>
+                      );
+                    })}
+                  </span>
+                  <input
+                    className="sr-only"
+                    type="file"
+                    multiple
+                    accept="image/*,application/pdf,text/plain"
+                    onChange={chooseFiles}
+                  />
+                </label>
+
+                {files.length > 0 && (
+                  <div className="mt-4 rounded-lg border border-zinc-800 bg-zinc-950/60 p-3">
+                    <p className="mb-2 text-xs font-medium text-zinc-400">
+                      {files.length} file{files.length > 1 ? 's' : ''} ready to upload
+                    </p>
+                    <ul className="mb-3 space-y-1.5">
+                      {files.map((f, i) => (
+                        <li key={i} className="flex items-center justify-between gap-2 text-sm">
+                          <span className="flex min-w-0 items-center gap-2 text-zinc-300">
+                            <FileText className="h-3.5 w-3.5 shrink-0 text-blue-400" />
+                            <span className="truncate">{f.name}</span>
+                          </span>
+                          <span className="shrink-0 text-xs text-zinc-600">
+                            {(f.size / 1024).toFixed(0)} KB
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
+                    <button
+                      disabled={uploading}
+                      onClick={upload}
+                      className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white shadow-lg shadow-blue-500/20 transition-colors hover:bg-blue-500 disabled:cursor-not-allowed disabled:opacity-60"
                     >
-                      <Icon className="h-3 w-3" />
-                      {g.label}
-                    </span>
-                  );
-                })}
-              </span>
-              <input
-                className="sr-only"
-                type="file"
-                multiple
-                accept="image/*,application/pdf,text/plain"
-                onChange={chooseFiles}
-              />
-            </label>
+                      {uploading ? (
+                        <>
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                          Uploading…
+                        </>
+                      ) : (
+                        <>
+                          <UploadCloud className="h-4 w-4" />
+                          Upload {files.length} file{files.length > 1 ? 's' : ''}
+                        </>
+                      )}
+                    </button>
+                  </div>
+                )}
 
-            {files.length > 0 && (
-              <div className="mt-4 rounded-lg border border-zinc-800 bg-zinc-950/60 p-3">
-                <p className="mb-2 text-xs font-medium text-zinc-400">
-                  {files.length} file{files.length > 1 ? 's' : ''} ready to upload
-                </p>
-                <ul className="mb-3 space-y-1.5">
-                  {files.map((f, i) => (
-                    <li key={i} className="flex items-center justify-between gap-2 text-sm">
-                      <span className="flex min-w-0 items-center gap-2 text-zinc-300">
-                        <FileText className="h-3.5 w-3.5 shrink-0 text-blue-400" />
-                        <span className="truncate">{f.name}</span>
-                      </span>
-                      <span className="shrink-0 text-xs text-zinc-600">
-                        {(f.size / 1024).toFixed(0)} KB
-                      </span>
-                    </li>
-                  ))}
-                </ul>
-                <button
-                  disabled={uploading || data?.viewer?.role === 'BUYER'}
-                  onClick={upload}
-                  title={data?.viewer?.role === 'BUYER' ? 'Switch to Seller in the navbar to upload evidence' : undefined}
-                  className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white shadow-lg shadow-blue-500/20 transition-colors hover:bg-blue-500 disabled:cursor-not-allowed disabled:opacity-60"
-                >
-                  {uploading ? (
-                    <>
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                      Uploading…
-                    </>
-                  ) : (
-                    <>
-                      <UploadCloud className="h-4 w-4" />
-                      Upload {files.length} file{files.length > 1 ? 's' : ''}
-                    </>
-                  )}
-                </button>
-              </div>
-            )}
-
-            {error && (
-              <p className="mt-3 flex items-center gap-2 text-sm text-red-300">
-                <AlertCircle className="h-4 w-4 shrink-0" />
-                {error}
+                {error && (
+                  <p className="mt-3 flex items-center gap-2 text-sm text-red-300">
+                    <AlertCircle className="h-4 w-4 shrink-0" />
+                    {error}
+                  </p>
+                )}
+                {notice && (
+                  <p className="mt-3 flex items-center gap-2 text-sm text-emerald-300">
+                    <CheckCircle2 className="h-4 w-4 shrink-0" />
+                    {notice}
+                  </p>
+                )}
+              </>
+            ) : (
+              <p className="rounded-lg border border-zinc-800 bg-zinc-950/60 p-4 text-sm text-zinc-500">
+                Evidence uploads are closed for this order&apos;s current status ({tx.status}).
               </p>
             )}
-            {notice && (
-              <p className="mt-3 flex items-center gap-2 text-sm text-emerald-300">
-                <CheckCircle2 className="h-4 w-4 shrink-0" />
-                {notice}
-              </p>
-            )}
-          </>
-        ) : (
-          <p className="rounded-lg border border-zinc-800 bg-zinc-950/60 p-4 text-sm text-zinc-500">
-            Evidence uploads are closed for this order&apos;s current status ({tx.status}).
-          </p>
-        )}
-      </section>
+          </section>
+        </>
+      )}
 
       {/* ── Uploaded evidence list ── */}
       <section className="rounded-xl border border-zinc-800 bg-zinc-900 p-6">
