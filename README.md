@@ -2,53 +2,129 @@
 
 <div align="center">
 
-[![Live Production Website](https://img.shields.io/badge/Live%20Website-razorchain--ai.vercel.app-2563EB?style=for-the-badge&logo=vercel&logoColor=white)](https://razorchain-ai.vercel.app)
-[![Next.js](https://img.shields.io/badge/Next.js-16.3.4-black?style=for-the-badge&logo=next.js&logoColor=white)](https://nextjs.org/)
-[![TypeScript](https://img.shields.io/badge/TypeScript-5.0-3178C6?style=for-the-badge&logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
-[![Tests Passing](https://img.shields.io/badge/Tests-61%2F61%20Passed-10B981?style=for-the-badge&logo=vitest&logoColor=white)](https://vitest.dev/)
-[![Google Gemini](https://img.shields.io/badge/Google%20Gemini-3.6%20Flash-4285F4?style=for-the-badge&logo=google&logoColor=white)](https://ai.google.dev/)
-[![Razorpay Nodal Escrow](https://img.shields.io/badge/Settlement-Razorpay%20Nodal-0C2340?style=for-the-badge&logo=razorpay&logoColor=white)](https://razorpay.com)
-
-**Autonomous B2B Supply Chain Escrow Platform powered by Multi-Agent AI, Deterministic Financial Governance, and Cryptographic Proof-of-Settlement.**
-
-[🌐 Explore Live Site](https://razorchain-ai.vercel.app) · [⚡ 60-Second Pitch](#-the-10-minute-verbal-pitch-in-60-seconds) · [🔑 Demo Accounts](#-1-click-role-switcher--test-credentials) · [⚙️ Core Functions Directory](#️-core-functions-directory) · [🚀 Run Locally](#-local-development-setup)
+[![Live Demo](https://img.shields.io/badge/Live%20Demo-razorchain--ai.vercel.app-2563EB?style=for-the-badge&logo=vercel&logoColor=white)](https://razorchain-ai.vercel.app)
+[![Next.js 16](https://img.shields.io/badge/Next.js-16.3.4-black?style=for-the-badge&logo=next.js&logoColor=white)](https://nextjs.org/)
+[![TypeScript 5](https://img.shields.io/badge/TypeScript-5.0-3178C6?style=for-the-badge&logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
+[![Tests Passing](https://img.shields.io/badge/Vitest-66%2F66%20Passed-10B981?style=for-the-badge&logo=vitest&logoColor=white)](https://vitest.dev/)
 
 </div>
 
+**RazorChain AI** automates B2B supply chain escrow payouts. When a buyer places a purchase order, escrow funds are reserved in a virtual chamber. When goods arrive, multimodal AI (Google Gemini 3.6 Flash) inspects physical delivery challans, bills of lading, and tax invoices, cross-references line items and addresses against the contract, and either triggers automated payout or routes discrepancies to a human-in-the-loop triage queue.
+
+[🌐 Explore Live Demo](https://razorchain-ai.vercel.app) · [⚡ Overview](#-the-60-second-overview) · [🧪 Test Suite (66/66)](#-verified-test-suite--code-quality) · [🔍 Real vs. Mocked](#-what-is-real-vs-what-is-simulated--mocked) · [🔑 Demo Accounts](#-1-click-role-switcher--test-credentials) · [⚙️ Core Functions Directory](#️-core-functions-directory) · [🚀 Run Locally](#-local-development-setup)
+
 ---
 
-## ⚡ The 10-Minute Verbal Pitch in 60 Seconds
+## ⚡ The 60-Second Overview
 
-> *Traditional B2B escrow is plagued by manual document verification, settlement delays of 14–45 days, double-invoicing fraud, and irreconcilable regulatory conflicts between statutory tax retention and data privacy laws.*
+In traditional B2B trade, suppliers wait days or weeks for manual back-office teams to cross-reference physical delivery receipts, proof-of-delivery challans, and invoices before escrow payments are released. This manual review introduces settlement bottlenecks, risks payment fraud from altered paper challans, and complicates data privacy when storing scanned identity documents alongside long-term financial audit ledgers.
 
-**RazorChain AI automates the entire supply chain settlement lifecycle into an autonomous, closed-loop clearing protocol:**
+**RazorChain AI streamlines this workflow into an automated, verifiable pipeline:**
 
-1. **AI Contract Drafting**: Buyers submit purchase orders; our `ContractAgent` generates deterministic, verifiable escrow agreements.
-2. **Nodal Chamber Reservation**: Escrow funds are locked via dedicated Virtual Account Numbers (VAN) backed by partner bank clearing rails (Axis / Yes Bank / HDFC).
-3. **Multimodal Computer Vision Verification**: Google Gemini 3.6 Flash and `VisionAgent` extract line items, quantities, consignee GPS addresses, and authorized digital signatures from physical delivery challans and tax invoices.
-4. **Adversarial & Forensic Firewalls**: Documents pass `AegisFirewall` (prompt injection defense), perceptual hashing (`pHash` duplicate detection), and GST e-Invoice IRN double-financing checks.
-5. **Four-Eyes Maker-Checker Governance**: Disbursements exceeding ₹10,00,000 require dual cryptographic multi-sig approvals from both Buyer and Seller.
-6. **Statutory Dual-Retention Tombstoning**: When Right to be Forgotten (GDPR Art 17 / India DPDP Act) is exercised, KMS Data Encryption Keys (DEKs) are permanently shredded while immutable Merkle audit roots are retained for statutory 7-year financial compliance.
+1. **Digital PO Contract**: The buyer creates a purchase order; the contract agent formalizes verifiable milestone conditions (line items, required quantities, delivery address, SLA dates).
+2. **Escrow Chamber Reservation**: Escrow funds are locked into a dedicated Virtual Account Number (VAN) pending delivery confirmation.
+3. **Multimodal Document Inspection**: When the supplier delivers goods, they photograph and upload the physical delivery challan or lorry receipt. Google Gemini 3.6 Flash extracts line items, quantities, consignee delivery addresses, and handwritten signatures.
+4. **Deterministic Validation**: Pure TypeScript logic checks postal PIN codes (`560100`), strips geographical stop-words, calculates token overlap, and checks quantity tolerances.
+5. **Human-in-the-Loop Triage**: Deliveries with high confidence ($\ge 0.95$) and matching terms are approved automatically. Discrepancies, altered paperwork, or low-confidence scans are routed to an Admin Triage queue.
+6. **Four-Eyes Multi-Sig for High Value**: Disbursements $\ge$ ₹10,00,000 require dual co-signatures from both buyer and seller before funds can be released.
+7. **Statutory Dual-Retention Tombstoning**: To reconcile data privacy laws (GDPR Art 17 / India DPDP Act) with statutory 7-year financial audit requirements, Data Encryption Keys (DEKs) are cryptographically shredded (`0x00`) while preserving immutable SHA-256 Merkle audit roots.
 
-| Dimension | Legacy B2B Escrow | RazorChain AI Protocol |
+### Architectural Comparison
+
+| Capability | Traditional B2B Escrow | RazorChain AI Protocol |
 |---|---|---|
-| **Verification Speed** | 3 to 10 business days (manual auditors) | **< 3 seconds** (Gemini 3.6 Flash Multi-Agent) |
-| **Fraud Interception** | Post-facto dispute arbitration | **Pre-settlement** (`pHash`, GST IRN validation, Aegis firewall) |
-| **High-Value Payouts** | Vulnerable to single-operator compromise | **Four-Eyes Multi-Sig** (Dual counterparty co-signing) |
-| **Regulatory Privacy** | Compliance deadlock (Tax vs Privacy laws) | **Dual-Retention Tombstone** (PII & DEK Shredding + 7-Yr Ledger) |
-| **Trade Liquidity** | Trapped working capital | **Instant Factoring Pledges** + **Early Dynamic Discounts** |
+| **Document Verification** | Manual review by back-office staff | Automated multimodal OCR (Gemini 3.6 Flash) + deterministic rule checks |
+| **Fraud Interception** | Post-dispute manual arbitration | Pre-settlement checks (`pHash` duplicate check, Aegis prompt-injection firewall) |
+| **High-Value Payouts** | Vulnerable to single-operator errors | **Four-Eyes Multi-Sig** (Dual counterparty co-signing for $\ge$ ₹10 Lakhs) |
+| **Privacy Compliance** | Hard-deleting rows breaks audit trails | **Cryptographic Tombstone** (Shreds PII & DEKs, preserves Merkle audit proofs) |
+| **Supplier Liquidity** | Working capital trapped until final sign-off | **Escrow Factoring** (Pledge receivables) + **Early Delivery Discounts** |
+
+---
+
+## 🧪 Verified Test Suite & Code Quality
+
+RazorChain AI enforces automated testing across financial calculations, multi-agent AI verification, cryptographic shredding, and order lifecycle states. 
+
+**66 unit and integration tests across 7 test files, currently passing:**
+
+```text
+ ✓ src/lib/services/resilience-fallbacks.test.ts (5 tests)
+ ✓ src/lib/services/order-lifecycle-audit.test.ts (15 tests)
+ ✓ src/lib/services/enterprise-features.test.ts (14 tests)
+ ✓ src/lib/services/gemini-key-pool.test.ts (3 tests)
+ ✓ src/lib/agents/verification-engine.test.ts (12 tests)
+ ✓ src/lib/services/cryptographic-shredding-service.test.ts (5 tests)
+ ✓ src/lib/services/financial-governance.test.ts (12 tests)
+
+ Test Files  7 passed (7)
+      Tests  66 passed (66)
+```
+
+Run tests and verification commands locally:
+```bash
+# Run Vitest test suite
+npm test
+
+# Type-check TypeScript codebase
+npx tsc --noEmit
+
+# Production Next.js build verification
+npm run build
+```
+
+---
+
+## 🔍 What is Real vs. What is Simulated / Mocked
+
+For complete transparency during technical evaluation, here is an explicit breakdown of fully operational code versus sandbox/mocked integrations:
+
+| Component | Status | Details |
+|---|---|---|
+| **Multimodal Vision (`VisionAgent`)** | **Real** | Uses live Google Gemini 3.6 Flash (`@google/genai`) to parse uploaded delivery documents and extract PO, quantity, address, and signature data. |
+| **Deterministic Verification Engine** | **Real** | Pure TypeScript logic executing PIN extraction, token-overlap matching, quantity tolerances, and three-way matching against purchase orders. |
+| **Aegis Security Firewall** | **Real** | Real regex and Unicode heuristic analyzers for prompt injection, zero-width steganography, and payload filtering. |
+| **Cryptographic Shredding & Tombstoning** | **Real** | Real key zeroization logic (`0x00`), surrogate ID generation (`[REDACTED_ENTITY_XXXX]`), and PII redaction under compliance request workflows. |
+| **Merkle Tree Proofs** | **Real** | Real SHA-256 cryptographic binary tree construction and inclusion proof verification via Node.js `crypto`. |
+| **Four-Eyes Governance (`MakerChecker`)** | **Real** | Real multi-sig state machine requiring dual co-signatures for transactions $\ge$ ₹10,00,000. |
+| **Role-Based Auth & Cockpits** | **Real** | Real session handling with 3 dedicated user cockpits (Buyer, Seller, Admin) and fast persona switching. |
+| **Automated Test Suite** | **Real** | 66 passing Vitest unit and integration tests verifying all critical financial and cryptographic services. |
+| **Nodal Escrow Banking Rails** | **Simulated / Mock** | Banking nodal accounts and fund transfers run with `RAZORCHAIN_PAYMENT_PROVIDER=mock` to allow end-to-end testing without real bank clearing credentials. |
+| **Carrier Tracking (FedEx, DHL, BlueDart)** | **Simulated / Mock** | Generates realistic logistics checkpoints and transit telemetry for demonstration. |
+| **GST e-Invoice IRN Verification** | **Simulated Validation** | Parses e-Invoice QR structure; signature verification validates schema against mock public keys. |
+
+---
+
+## ⏱️ Latency Profile & How Verification Works
+
+Instead of relying on unverified speed claims, RazorChain AI couples cloud AI reasoning with immediate local deterministic execution:
+
+1. **Multimodal Document Extraction (Gemini 3.6 Flash)**:
+   - Typically takes **~1.5s to 3.5s** per document round-trip, depending on upstream Google API latency and image resolution.
+   - Extracts structured JSON containing PO number, quantity, delivery address, signature presence, and visual bounding boxes.
+2. **Deterministic Verification Engine (`verification-engine.ts`)**:
+   - Executes locally in **< 5ms** in Node.js.
+   - Performs 5 targeted checks:
+     - **PO Number**: Normalized alphanumeric match against contract PO.
+     - **Quantity**: Compares extracted count against contract quantities within defined tolerance percentages (default: 0%).
+     - **Address**: Extracts 5-to-6 digit postal PIN codes (`\b\d{5,6}\b`), removes geographical stop-words (`gate`, `warehouse`, `ltd`), and computes bidirectional token-overlap ratios.
+     - **Date**: Verifies delivery timestamps against SLA milestones.
+     - **Signature**: Confirms visual evidence of physical signature/stamp.
+3. **Decision & Escalation Thresholds**:
+   - **`APPROVED`**: Overall confidence $\ge 0.95$ and 0 check failures. Funds release is initiated.
+   - **`MANUAL_REVIEW`**: Confidence between $0.80$ and $0.94$, or any warning/borderline discrepancy. Transaction is held and routed to the Human-in-the-Loop Admin Triage Queue (`/admin`).
+   - **`REJECTED`**: Critical check failure (wrong PO number, missing signature, major quantity deviation) or confidence $< 0.80$.
 
 ---
 
 ## 🔑 1-Click Role Switcher & Test Credentials
 
-RazorChain AI includes pre-configured enterprise profiles for live testing. Use the **Quick Role Switcher** (`Buyer` | `Seller` | `Admin`) pinned in the top navigation bar to switch personas in one click:
+RazorChain AI includes pre-configured profiles for evaluation. Use the **Quick Role Switcher** (`Buyer` | `Seller` | `Admin`) pinned in the top navigation bar to switch personas in one click:
 
 | Role | Demo Credentials | Primary Operations & Capabilities |
 |---|---|---|
-| **Buyer** | `buyer@demo.com`<br>`password123` | • Create Purchase Orders with SLA conditions<br>• Lock funds into virtual escrow accounts<br>• Inspect AI side-by-side OCR bounding boxes<br>• Sign Step 1 Multi-Sig & trigger instant releases |
+| **Buyer** | `buyer@demo.com`<br>`password123` | • Create Purchase Orders with SLA conditions<br>• Lock funds into virtual escrow chambers<br>• Inspect AI side-by-side OCR bounding boxes<br>• Sign Step 1 Multi-Sig & trigger instant releases |
 | **Seller** | `seller@demo.com`<br>`password123` | • View incoming Purchase Orders in Fulfillment Cockpit<br>• Stage & upload delivery challans & invoices<br>• Submit carrier tracking (FedEx, DHL, BlueDart)<br>• Sign Step 2 Multi-Sig & pledge receivables for factoring |
-| **Admin** | `admin@demo.com`<br>`password123` | • Institutional Compliance & Governance Cockpit<br>• Manual Vision Triage for border-line confidence checks<br>• Execute Regulatory Tombstone & DEK shredding<br>• Trigger overnight RBI Nodal batch clearing |
+| **Admin** | `admin@demo.com`<br>`password123` | • Institutional Compliance & Governance Cockpit<br>• Manual Vision Triage for borderline confidence checks<br>• Execute Regulatory Tombstone & DEK shredding<br>• Inspect system health & live audit logs |
 
 ---
 
@@ -102,8 +178,8 @@ RazorChain AI includes pre-configured enterprise profiles for live testing. Use 
          ┌─────────────────────────┴─────────────────────────┐
          ▼                                                   ▼
 ┌──────────────────┐                               ┌──────────────────┐
-│ Merkle Root Tree │ (Polygon / Immutable Log)     │ Cryptographic DEK│ (Statutory
-│ (SHA-256 Audit)  │                               │ Shredding / KMS) │  Tombstoning)
+│ Merkle Root Tree │ (SHA-256 Immutable Log)       │ Cryptographic DEK│ (Statutory
+│ (Audit Ledger)   │                               │ Shredding / KMS) │  Tombstoning)
 └──────────────────┘                               └──────────────────┘
 ```
 
@@ -249,54 +325,73 @@ console.log(result);
 // }
 ```
 
-#### 7. `CryptographicShreddingService.shredDEK()` & `isDEKActive()`
+#### 7. `CryptographicShreddingService.shredDEK()`
 * **File:** [`src/lib/services/cryptographic-shredding-service.ts`](file:///Users/sunnymacbook/razorchain-ai/src/lib/services/cryptographic-shredding-service.ts)
-* **Purpose:** Overwrites a specific document's Envelope Encryption Key with zero-bytes (`DESTROYED_0x00`), rendering stored binaries mathematically unreadable even if raw database storage is inspected.
+* **Purpose:** Destroys symmetric document encryption keys in KMS, rendering ciphertexts mathematically undecryptable while preserving on-chain hashes.
 * **Code Example:**
 ```typescript
-const isAlive = CryptographicShreddingService.isDEKActive('kms-dek-shredded-901');
-// Returns false
-
-CryptographicShreddingService.shredDEK('kms-dek-active-123');
-// DEK permanently revoked
+const isShredded = await CryptographicShreddingService.shredDEK('dek-user-1234');
+// Returns true upon KMS zeroization
 ```
 
-#### 8. `maskPII()`
-* **File:** [`src/components/privacy/tombstone-mask.ts`](file:///Users/sunnymacbook/razorchain-ai/src/components/privacy/tombstone-mask.ts)
-* **Purpose:** Frontend and API masking utility that sanitizes email addresses, phone numbers, person names, and physical addresses for tombstoned counterparties.
+#### 8. `CryptographicShreddingService.isDEKActive()`
+* **File:** [`src/lib/services/cryptographic-shredding-service.ts`](file:///Users/sunnymacbook/razorchain-ai/src/lib/services/cryptographic-shredding-service.ts)
+* **Purpose:** Liveness check that determines whether an entity's data encryption key is valid or has been permanently zeroized.
 * **Code Example:**
 ```typescript
-import { maskPII } from '@/components/privacy/tombstone-mask';
+const active = await CryptographicShreddingService.isDEKActive('user-uuid-1234');
+if (!active) {
+  throw new Error('Access denied: Entity cryptographic keys have been destroyed');
+}
+```
 
-maskPII('rajesh.kumar@acme.corp', 'email');   // "r***r@acme.corp"
-maskPII('Manufacturing Plant 4, Bengaluru', 'address'); // "M***4, B***u"
+#### 9. `CryptographicShreddingService.maskPII()`
+* **File:** [`src/lib/services/cryptographic-shredding-service.ts`](file:///Users/sunnymacbook/razorchain-ai/src/lib/services/cryptographic-shredding-service.ts)
+* **Purpose:** Sanitizes database records during live transactions to prevent sensitive bank account, PAN, and tax information from leaking to frontend payloads.
+* **Code Example:**
+```typescript
+const sanitized = CryptographicShreddingService.maskPII({
+  gstin: '29AAACA1234Z1ZA',
+  bankAccount: '123456789012',
+  email: 'director@supplier.com',
+});
+// { gstin: '29AAACA****1ZA', bankAccount: '********9012', email: 'd***r@supplier.com' }
 ```
 
 ---
 
 ### Module 3: Enterprise Financial Governance & Escrow Mechanics
 
-#### 9. `MakerCheckerService` (Four-Eyes Multi-Sig)
-* **File:** [`src/app/api/transactions/[id]/multisig/route.ts`](file:///Users/sunnymacbook/razorchain-ai/src/app/api/transactions/%5Bid%5D/multisig/route.ts)
-* **Purpose:** Enforces dual counterparty authorization on disbursements ≥ ₹10,00,000. Step 1 requires Buyer release co-signing; Step 2 requires Seller settlement acceptance. Settlement remains locked until quorum (2/2) is satisfied.
+#### 10. `MakerCheckerService` (Four-Eyes Dual Governance)
+* **File:** [`src/lib/services/maker-checker-service.ts`](file:///Users/sunnymacbook/razorchain-ai/src/lib/services/maker-checker-service.ts)
+* **Purpose:** Prevents single-operator compromise on high-value settlements ($\ge$ ₹10,00,000). Enforces asymmetric two-step authorization requiring distinct Buyer Maker and Seller Checker cryptographic co-signatures.
 * **Code Example:**
 ```typescript
-// Recording Step 1 (Buyer Signature)
-const res = await fetch(`/api/transactions/${txId}/multisig`, {
-  method: 'POST',
-  body: JSON.stringify({ action: 'SIGN_STEP_1', note: 'Goods physically inspected at warehouse' }),
+import { MakerCheckerService } from '@/lib/services/maker-checker-service';
+
+// 1. Check if transaction requires dual multi-sig
+const requiresDualApproval = MakerCheckerService.requiresMultiSig(1500000); // true
+
+// 2. Record Step 1 Buyer Maker Signature
+await MakerCheckerService.recordSignature({
+  transactionId: 'tx-uuid-1045',
+  userId: 'buyer-uuid',
+  userRole: 'BUYER',
+  step: 'MAKER_STEP_1',
 });
 
-// Recording Step 2 (Seller Final Co-Sign)
-const res2 = await fetch(`/api/transactions/${txId}/multisig`, {
-  method: 'POST',
-  body: JSON.stringify({ action: 'SIGN_STEP_2', note: 'Settlement accepted to HDFC current account' }),
+// 3. Record Step 2 Seller Checker Signature (must be distinct counterparty)
+await MakerCheckerService.recordSignature({
+  transactionId: 'tx-uuid-1045',
+  userId: 'seller-uuid',
+  userRole: 'SELLER',
+  step: 'CHECKER_STEP_2',
 });
 ```
 
-#### 10. `DynamicDiscountService.calculateDynamicDiscount()`
+#### 11. `DynamicDiscountService.calculateDynamicDiscount()`
 * **File:** [`src/lib/services/dynamic-discount-service.ts`](file:///Users/sunnymacbook/razorchain-ai/src/lib/services/dynamic-discount-service.ts)
-* **Purpose:** Computes sliding-scale early payment discounts when goods are delivered ahead of the contracted SLA. (Formula: 2% base for 1+ day early + 0.1% per additional day, capped at 5%).
+* **Purpose:** Calculates sliding-scale APR discounts (e.g. 2/10 net 30) when sellers complete deliveries ahead of scheduled SLA dates, automatically rebating buyers while accelerating seller settlement.
 * **Code Example:**
 ```typescript
 import { calculateDynamicDiscount } from '@/lib/services/dynamic-discount-service';
@@ -318,7 +413,7 @@ console.log(discount);
 // }
 ```
 
-#### 11. `FactoringService.verifyEscrowCollateral()` & `pledgeEscrowReceivable()`
+#### 12. `FactoringService.verifyEscrowCollateral()` & `pledgeEscrowReceivable()`
 * **File:** [`src/lib/services/factoring-service.ts`](file:///Users/sunnymacbook/razorchain-ai/src/lib/services/factoring-service.ts)
 * **Purpose:** Enables suppliers to pledge locked escrow receivables to third-party lenders for instant working capital advances (up to 85% of locked escrow funds) with cryptographic HMAC verification.
 * **Code Example:**
@@ -338,7 +433,7 @@ const pledge = await pledgeEscrowReceivable({
 });
 ```
 
-#### 12. `FxHedgeService.lockCrossBorderFx()`
+#### 13. `FxHedgeService.lockCrossBorderFx()`
 * **File:** [`src/lib/services/fx-hedge-service.ts`](file:///Users/sunnymacbook/razorchain-ai/src/lib/services/fx-hedge-service.ts)
 * **Purpose:** Locks currency exchange rates (e.g. USD/INR, EUR/INR) at the `FUNDS_RESERVED` stage, protecting cross-border suppliers from foreign exchange volatility during the 30-day fulfillment window.
 * **Code Example:**
@@ -349,7 +444,7 @@ const quote = await lockCrossBorderFx('tx-uuid-1045', 'USD', 'INR');
 console.log(`Locked rate: ₹${quote.lockedFxRate} valid for 30 days`);
 ```
 
-#### 13. `EscrowTimer.fireEscrowTimers()`
+#### 14. `EscrowTimer.fireEscrowTimers()`
 * **File:** [`src/lib/services/escrow-timer.ts`](file:///Users/sunnymacbook/razorchain-ai/src/lib/services/escrow-timer.ts)
 * **Purpose:** Automated cron watchdog that executes auto-releases if buyers fail to raise disputes within their inspection window (default: 72 hours), and auto-refunds if sellers miss delivery deadlines.
 * **Code Example:**
@@ -364,7 +459,7 @@ console.log(`Auto-released: ${timerResult.autoReleased}, Auto-refunded: ${timerR
 
 ### Module 4: Cryptographic Proofs & Document Verification
 
-#### 14. `MerkleService.buildMerkleTree()` & `getMerkleProof()`
+#### 15. `MerkleService.buildMerkleTree()` & `getMerkleProof()`
 * **File:** [`src/lib/services/merkle-service.ts`](file:///Users/sunnymacbook/razorchain-ai/src/lib/services/merkle-service.ts)
 * **Purpose:** Constructs cryptographic binary Merkle trees of settlement batches. Generates inclusion proofs enabling counterparty verification of immutable transaction state against the anchored root.
 * **Code Example:**
@@ -380,7 +475,7 @@ const isValid = verifyMerkleProof(leaves[0], proof, root);
 console.log(`Merkle proof verified: ${isValid}`);
 ```
 
-#### 15. `EInvoiceService.parseAndVerifyEInvoiceQR()`
+#### 16. `EInvoiceService.parseAndVerifyEInvoiceQR()`
 * **File:** [`src/lib/services/einvoice-service.ts`](file:///Users/sunnymacbook/razorchain-ai/src/lib/services/einvoice-service.ts)
 * **Purpose:** Cryptographically parses Indian GST e-Invoice standard QR codes (NIC signed JWT / JSON). Validates Invoice Reference Numbers (IRN) and prevents double-financing fraud across factoring lenders.
 * **Code Example:**
@@ -395,7 +490,7 @@ if (check.doubleFinanced) {
 }
 ```
 
-#### 16. `PdfCertificateService.generateSettlementCertificatePdf()`
+#### 17. `PdfCertificateService.generateSettlementCertificatePdf()`
 * **File:** [`src/lib/services/pdf-certificate-service.ts`](file:///Users/sunnymacbook/razorchain-ai/src/lib/services/pdf-certificate-service.ts)
 * **Purpose:** Generates institutional, tamper-evident PDF settlement certificates with HMAC-SHA256 signatures, settlement UTRs, multi-sig attestation timestamps, and Merkle root anchors.
 * **Code Example:**
@@ -406,7 +501,7 @@ const pdfBytes = generateSettlementCertificatePdf(certificateRecord);
 // Returns Uint8Array suitable for browser streaming or storage archiving
 ```
 
-#### 17. `KybService.validateGSTIN()` & `screenSanctions()`
+#### 18. `KybService.validateGSTIN()` & `screenSanctions()`
 * **File:** [`src/lib/services/kyb-service.ts`](file:///Users/sunnymacbook/razorchain-ai/src/lib/services/kyb-service.ts)
 * **Purpose:** Validates corporate tax identities using Luhn-style mod-36 checksum algorithms, and screens counterparty entity names against global OFAC/UN/EU sanctions databases.
 * **Code Example:**
@@ -421,7 +516,7 @@ const sanctions = await screenSanctions('Apex Precision Engineering Ltd'); // { 
 
 ### Module 5: Infrastructure, Telemetry & Resilience
 
-#### 18. `GeminiKeyPool.getNextClient()`
+#### 19. `GeminiKeyPool.getNextClient()`
 * **File:** [`src/lib/services/gemini-key-pool.ts`](file:///Users/sunnymacbook/razorchain-ai/src/lib/services/gemini-key-pool.ts)
 * **Purpose:** Multi-key round-robin load balancer. Distributes inference across pools of Gemini API keys, automatically placing rate-limited keys (`429`) into cooldown and failing over to healthy keys.
 * **Code Example:**
@@ -432,7 +527,7 @@ const { client, keyIndex } = geminiKeyPool.getClient();
 // Automatically fails over if keyIndex is in cooldown
 ```
 
-#### 19. `CarrierService.track()`
+#### 20. `CarrierService.track()`
 * **File:** [`src/lib/services/carrier-service.ts`](file:///Users/sunnymacbook/razorchain-ai/src/lib/services/carrier-service.ts)
 * **Purpose:** Live logistics telemetry hub. Tracks real-time AWB updates across FedEx, DHL, BlueDart, and Delhivery with automated checkpoint status normalization (`IN_TRANSIT` → `DELIVERED`).
 * **Code Example:**
@@ -443,7 +538,7 @@ const tracking = await carrierService.track('BLUEDART', 'BD-88992211-IN');
 console.log(`Status: ${tracking.status}, Last Location: ${tracking.lastLocation}`);
 ```
 
-#### 20. `WebhookService.dispatchWebhook()`
+#### 21. `WebhookService.dispatchWebhook()`
 * **File:** [`src/lib/services/webhook-service.ts`](file:///Users/sunnymacbook/razorchain-ai/src/lib/services/webhook-service.ts)
 * **Purpose:** Dispatches real-time HMAC-SHA256 signed event notifications to ERP/Treasury endpoints for lifecycle milestones (`PO_RESERVED`, `DELIVERY_VERIFIED`, `PAYMENT_SETTLED`).
 * **Code Example:**
@@ -460,7 +555,7 @@ await dispatchWebhook('tx-uuid-1045', 'DELIVERY_VERIFIED', {
 
 ### Module 6: Identity, Access Control & Utilities
 
-#### 21. `canAccessTransaction()`
+#### 22. `canAccessTransaction()`
 * **File:** [`src/lib/auth.ts`](file:///Users/sunnymacbook/razorchain-ai/src/lib/auth.ts)
 * **Purpose:** Core access-control guard. Validates whether an authenticated user can read or execute mutations on a specific escrow transaction (permitting assigned Buyers, authorized Sellers, and platform Admins).
 * **Code Example:**
@@ -472,7 +567,7 @@ if (!canAccessTransaction(user, transaction)) {
 }
 ```
 
-#### 22. `getUser()`
+#### 23. `getUser()`
 * **File:** [`src/lib/auth.ts`](file:///Users/sunnymacbook/razorchain-ai/src/lib/auth.ts)
 * **Purpose:** Securely parses and verifies HTTP-only authentication cookies, extracting active user identity and filtering out tombstoned sessions.
 * **Code Example:**
@@ -484,16 +579,6 @@ export async function POST(request: NextRequest) {
   if (!user) return Response.json({ error: 'Not authenticated' }, { status: 401 });
   // Process authenticated request
 }
-```
-
-#### 23. `findTransactionByIdOrNumber()`
-* **File:** [`src/lib/db/transaction-utils.ts`](file:///Users/sunnymacbook/razorchain-ai/src/lib/db/transaction-utils.ts)
-* **Purpose:** Resilient database query utility that looks up orders by either internal UUID or human-readable tracking number (e.g. `RC-DEMO-1045` or `77146f09-b3a9-4658-a0f5-f257a5f55e5b`).
-* **Code Example:**
-```typescript
-import { findTransactionByIdOrNumber } from '@/lib/db/transaction-utils';
-
-const order = await findTransactionByIdOrNumber('RC-DEMO-1045');
 ```
 
 ---
@@ -548,42 +633,16 @@ docker run --name razorchain-db -e POSTGRES_PASSWORD=password -e POSTGRES_DB=raz
 # Apply schema migrations
 npx drizzle-kit push
 
-# Start Next.js development server
+# Seed demo records and counterparties
+npm run seed
+```
+
+### 4. Start Development Server
+```bash
 npm run dev
 ```
 
 Visit `http://localhost:3000` to access the application.
-
----
-
-## 🧪 Quality Checks & Test Suite
-
-RazorChain AI enforces automated testing across financial calculations, multi-agent AI verification, cryptographic shredding, and order lifecycle flows:
-
-```bash
-# Run Vitest test suite (61 tests across 7 suites)
-npm test
-
-# Type-check TypeScript codebase
-npx tsc --noEmit
-
-# Production Next.js compilation (26 static/dynamic routes)
-npm run build
-```
-
-**Automated Test Coverage:**
-```text
- ✓ src/lib/services/resilience-fallbacks.test.ts (5 tests)
- ✓ src/lib/services/enterprise-features.test.ts (17 tests)
- ✓ src/lib/services/order-lifecycle-audit.test.ts (13 tests)
- ✓ src/lib/services/gemini-key-pool.test.ts (3 tests)
- ✓ src/lib/agents/verification-engine.test.ts (6 tests)
- ✓ src/lib/services/cryptographic-shredding-service.test.ts (5 tests)
- ✓ src/lib/services/financial-governance.test.ts (12 tests)
-
- Test Files  7 passed (7)
-      Tests  61 passed (61)
-```
 
 ---
 
@@ -601,23 +660,8 @@ npm run build
 
 ---
 
-## ⚖️ Copyright & Disclaimer of Liability
+## ⚖️ Project Attribution & Hackathon Notice
 
-**Copyright © 2026 Yaswanth Chowdary ([@sunny-bot18](https://github.com/sunny-bot18)). All Rights Reserved.**
+**Author:** Yaswanth Chowdary ([@sunny-bot18](https://github.com/sunny-bot18))
 
-### Ownership Notice
-All source code, software architectures, algorithms, multi-agent workflows, user interfaces, and intellectual property in this repository belong exclusively to **Yaswanth Chowdary** ([sunny-bot18/Razorchain-AI](https://github.com/sunny-bot18/Razorchain-AI)).
-
-### Data Loss & File Erasure Disclaimer
-> [!IMPORTANT]
-> **NO RESPONSIBILITY FOR ERASED OR DELETED FILES**: The author and copyright holder (**Yaswanth Chowdary**) assumes **no responsibility, obligation, or liability** for any files, documents, records, encryption keys, media, or data that are erased, shredded, deleted, overwritten, purged, or lost from this Git repository, cloud databases, serverless `/tmp` storage, or deployed instances.
-> 
-> This includes, but is not limited to:
-> - Automated data destruction via the platform's **Cryptographic Shredding Service** or key revocation routines.
-> - Regulatory **Right to be Forgotten (GDPR / DPDP)** user tombstoning and PII purges.
-> - Serverless container lifecycle resets, cache evictions, or storage boundary limits.
-> - Manual, scripted, or administrative file deletions, commit pruning, or database resets.
->
-> All software is provided strictly on an **"AS IS"** basis without warranty of any kind. Users and deploying entities are solely responsible for maintaining external, immutable backups of their files and data.
-
-For complete terms and legal provisions, refer to the full [LICENSE](LICENSE) file.
+> **Hackathon Prototype Notice**: RazorChain AI is an experimental prototype built for evaluation and demonstration. Seeded demo accounts (`buyer@demo.com`, `seller@demo.com`, `admin@demo.com`) and sandbox payment simulations are enabled by default for safe end-to-end evaluation.
