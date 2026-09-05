@@ -26,7 +26,7 @@ export function InboxZeroCard({
     description = 'No outstanding document proofs or carrier tracking registrations require your attention.';
   } else if (role === 'ADMIN') {
     title = 'Compliance Queue 100% Cleared!';
-    description = 'Zero unresolved Aegis forensic interceptions or manual review discrepancies on your desk.';
+    description = 'Zero unresolved discrepancies or manual reviews on your desk.';
   }
 
   return (

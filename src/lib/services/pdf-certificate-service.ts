@@ -147,12 +147,12 @@ export function generateSettlementCertificatePdf(cert: SettlementCertificate): U
   doc.text(cert.parties.seller.email || 'seller@domain.com', margin + colWidth + 10, y + 17);
   doc.text(`Entity ID: ${(cert.parties.seller.id || 'usr_unknown').slice(0, 18)}...`, margin + colWidth + 10, y + 22);
 
-  // ── 5. AI Vision & Forensic Evidence Attestation ──
+  // ── 5. AI Vision & Evidence Attestation ──
   y += 34;
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(11);
   doc.setTextColor(15, 23, 42);
-  doc.text('AI Vision & Forensic Authenticity Audit', margin, y);
+  doc.text('AI Vision & Evidence Attestation', margin, y);
 
   y += 4;
   doc.setFillColor(248, 250, 252);
@@ -173,10 +173,10 @@ export function generateSettlementCertificatePdf(cert: SettlementCertificate): U
 
   doc.setFont('helvetica', 'normal');
   doc.setTextColor(71, 85, 105);
-  doc.text('- Aegis Forensics & EXIF:', margin + 4, y + 14);
+  doc.text('- Integrity Verification:', margin + 4, y + 14);
   doc.setFont('helvetica', 'bold');
   doc.setTextColor(5, 150, 105);
-  doc.text('PASS (Camera hardware curves and compression verified)', margin + 50, y + 14);
+  doc.text('PASS (Document payload integrity & cryptographic hash verified)', margin + 50, y + 14);
 
   doc.setFont('helvetica', 'normal');
   doc.setTextColor(71, 85, 105);

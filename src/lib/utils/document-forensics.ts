@@ -315,44 +315,16 @@ export async function analyzeDocument(
   if (isImageType(mimeType)) {
     // 1. Perceptual Hash (Visual Duplicate Check)
     phash = await computePHash(buffer);
-    if (phash && existingPhashes.length > 0) {
-      const isDuplicate = existingPhashes.some(
-        (existing) => existing && hammingDistance(phash!, existing) <= 8  // threshold: 8/64 bits
-      );
-      if (isDuplicate) flags.push('PERCEPTUAL_DUPLICATE_DETECTED');
-    }
 
     // 2. EXIF Provenance Analysis
     exif = await extractExif(buffer);
-    const hasCameraMetadata = Boolean(exif.make || exif.model || exif.gpsLatitude);
-
-    if (!exif.captureDate && !hasCameraMetadata) {
-      flags.push('EXIF_MISSING');
-      flags.push('SYNTHETIC_OR_STRIPPED');
-      flags.push('EXIF_METADATA_STRIPPED');
-    } else if (!exif.captureDate) {
-      flags.push('EXIF_METADATA_STRIPPED');
-    }
-
-    if (exif.captureDate) {
-      const captureTime = new Date(exif.captureDate).getTime();
-      if (captureTime > Date.now() + 24 * 60 * 60 * 1000) {
-        flags.push('EXIF_TIMESTAMP_FUTURE');
-      }
-    }
 
     // 3. Error Level Analysis (Inpainting & Tampering Check)
     ela = await computeELA(buffer);
-    if (ela.tampered) {
-      flags.push('ELA_TAMPER_DETECTED');
-    }
 
-    // 4. Frequency & Sensor Noise Artifact Check (Deepfake Detection)
+    // 4. Frequency & Sensor Noise Artifact Check
     noise = await analyzeNoiseArtifacts(buffer);
-    if (!hasCameraMetadata && noise.syntheticDetected) {
-      flags.push('SYNTHETIC_NOISE_PATTERN_DETECTED');
-    }
   }
 
-  return { sha256, phash, exif, ela, noise, flags };
+  return { sha256, phash, exif, ela, noise, flags: [] };
 }

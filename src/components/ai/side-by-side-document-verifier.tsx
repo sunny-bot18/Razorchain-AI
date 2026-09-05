@@ -21,7 +21,6 @@ import {
   Sparkles,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { ForensicBadge } from './forensic-tooltip';
 
 export interface ExtractedField {
   id: string;
@@ -46,6 +45,140 @@ interface SideBySideDocumentVerifierProps {
   onRejectEvidence?: () => void;
   isLoading?: boolean;
   className?: string;
+}
+
+export function getBoundingBoxesForDocument(fileName?: string): Record<string, [number, number, number, number]> {
+  const name = (fileName || '').toLowerCase();
+
+  // 6_goods_receipt_note_grn.jpg (1240 x 1754 Inward GRN)
+  if (name.includes('grn') || name.includes('goods_receipt')) {
+    return {
+      po_number: [10.3, 29.0, 21.0, 6.8],
+      delivery_date: [10.3, 50.8, 21.0, 6.8],
+      delivery_address: [18.5, 50.0, 41.1, 10.8],
+      quantity: [33.2, 63.7, 9.7, 5.1],
+      receiver_signature: [51.9, 50.0, 41.1, 18.2],
+    };
+  }
+
+  // 7_medical_stents_delivery_challan.jpg (1240 x 1754 Medical Stents Challan)
+  if (name.includes('stent') && (name.includes('challan') || name.includes('delivery'))) {
+    return {
+      po_number: [12.5, 31.5, 21.8, 6.8],
+      delivery_date: [12.5, 54.0, 19.4, 6.8],
+      delivery_address: [21.1, 51.6, 41.9, 11.4],
+      quantity: [36.6, 74.2, 10.5, 5.1],
+      receiver_signature: [51.9, 51.6, 41.9, 17.1],
+    };
+  }
+
+  // 8_medical_stents_tax_invoice.jpg (1240 x 1754 Medical Stents Tax Invoice)
+  if (name.includes('stent') && name.includes('invoice')) {
+    return {
+      po_number: [10.3, 30.6, 21.8, 6.3],
+      delivery_date: [10.3, 75.8, 16.1, 6.3],
+      delivery_address: [18.2, 50.0, 41.1, 11.4],
+      quantity: [33.7, 54.8, 7.3, 5.1],
+      receiver_signature: [40.5, 57.3, 33.9, 9.7],
+    };
+  }
+
+  // 9_solar_pv_cells_delivery_challan.jpg (1240 x 1754 Solar PV Cells Challan)
+  if (name.includes('solar') || name.includes('photovoltaic')) {
+    return {
+      po_number: [12.5, 31.5, 21.8, 6.8],
+      delivery_date: [12.5, 54.0, 19.4, 6.8],
+      delivery_address: [21.1, 51.6, 41.9, 11.4],
+      quantity: [36.6, 74.2, 10.5, 5.1],
+      receiver_signature: [44.5, 51.6, 41.9, 16.0],
+    };
+  }
+
+  // 10_address_mismatch_wrong_warehouse.jpg
+  if (name.includes('mismatch') || name.includes('wrong_warehouse') || name.includes('misroute')) {
+    return {
+      po_number: [12.5, 31.5, 21.8, 7.4],
+      delivery_date: [12.5, 54.0, 19.4, 7.4],
+      delivery_address: [21.7, 51.6, 41.9, 12.0],
+      quantity: [38.0, 71.8, 10.5, 5.1],
+      receiver_signature: [46.7, 54.0, 24.2, 6.8],
+    };
+  }
+
+  // 11_short_shipment_partial_delivery.jpg
+  if (name.includes('short_shipment') || name.includes('partial') || name.includes('short')) {
+    return {
+      po_number: [12.5, 31.5, 21.8, 7.4],
+      delivery_date: [12.5, 54.0, 19.4, 7.4],
+      delivery_address: [21.7, 8.1, 87.1, 8.0],
+      quantity: [34.0, 61.3, 16.1, 5.1],
+      receiver_signature: [42.2, 54.0, 27.4, 7.4],
+    };
+  }
+
+  // 12_expired_sla_delayed_delivery.jpg
+  if (name.includes('delayed') || name.includes('late') || name.includes('expired')) {
+    return {
+      po_number: [12.5, 31.5, 21.8, 7.4],
+      delivery_date: [12.5, 54.0, 27.4, 7.4],
+      delivery_address: [21.7, 8.1, 87.1, 8.0],
+      quantity: [34.0, 71.8, 10.5, 5.1],
+      receiver_signature: [41.6, 54.0, 27.4, 6.8],
+    };
+  }
+
+  // 13_transporter_lorry_receipt_lr.jpg
+  if (name.includes('lorry') || name.includes('lr-') || name.includes('bilty') || name.includes('transporter')) {
+    return {
+      po_number: [12.0, 31.5, 21.8, 6.8],
+      delivery_date: [12.0, 54.0, 19.4, 6.8],
+      delivery_address: [20.2, 51.6, 41.9, 10.8],
+      quantity: [34.9, 73.4, 10.5, 4.8],
+      receiver_signature: [45.6, 53.2, 41.9, 16.0],
+    };
+  }
+
+  // 2_commercial_tax_invoice.jpg (1240 x 1754 standard invoice)
+  if (name.includes('invoice') || name.includes('tax') || name.includes('commercial')) {
+    return {
+      po_number: [10.5, 29.0, 21.0, 5.7],
+      delivery_date: [10.5, 74.2, 16.1, 5.7], // Over DUE DATE / TERMS (2026-09-05)
+      delivery_address: [18.2, 50.0, 41.1, 11.4], // Over SHIPPED TO (CONSIGNEE) Acme Manufacturing Corp
+      quantity: [33.7, 53.2, 7.7, 5.1], // Over 500 Nos in QTY column
+      receiver_signature: [62.1, 50.0, 41.1, 16.0], // Over AUTHORIZED SIGNATORY (SELLER) & Stamp/Signature
+    };
+  }
+
+  // 3_carrier_bluedart_airwaybill.jpg (1240 x 1754 Air Waybill)
+  if (name.includes('airwaybill') || name.includes('bluedart') || name.includes('carrier') || name.includes('manifest')) {
+    return {
+      po_number: [18.5, 74.2, 17.0, 6.3],
+      delivery_date: [18.5, 29.8, 39.5, 6.3],
+      delivery_address: [26.2, 50.8, 42.0, 11.4],
+      quantity: [41.0, 47.6, 43.5, 3.5],
+      receiver_signature: [52.0, 44.0, 40.0, 12.0],
+    };
+  }
+
+  // 5_cnc_actuators_delivery_proof.jpg (1240 x 1754 CNC Actuators Proof)
+  if (name.includes('cnc') || name.includes('actuator')) {
+    return {
+      po_number: [12.5, 33.1, 26.6, 6.8],
+      delivery_date: [36.2, 55.0, 35.0, 3.0],
+      delivery_address: [30.2, 6.5, 87.1, 8.6],
+      quantity: [23.5, 67.7, 13.0, 5.1],
+      receiver_signature: [41.0, 8.0, 65.0, 9.5],
+    };
+  }
+
+  // 1_clean_delivery_challan.jpg & 4_tampered_quantity_fraud.jpg & default Delivery Challan
+  return {
+    po_number: [12.5, 29.8, 21.8, 7.4],
+    delivery_date: [12.5, 52.4, 20.2, 7.4],
+    delivery_address: [21.7, 51.6, 42.0, 12.0],
+    quantity: [38.0, 70.2, 11.3, 5.1],
+    receiver_signature: [65.3, 51.6, 42.0, 19.4],
+  };
 }
 
 export const DEFAULT_SAMPLE_FIELDS: ExtractedField[] = [
@@ -174,22 +307,67 @@ export function SideBySideDocumentVerifier({
       {/* Dual Pane Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-12 min-h-[500px]">
         {/* Left Pane: Document Canvas & Interactive Bounding Boxes */}
-        <div className="lg:col-span-7 relative flex items-center justify-center border-b lg:border-b-0 lg:border-r border-zinc-800 bg-zinc-950/90 p-6 overflow-hidden select-none">
+        <div className="lg:col-span-7 relative flex items-center justify-center border-b lg:border-b-0 lg:border-r border-zinc-800 bg-zinc-950/90 p-4 sm:p-6 overflow-auto max-h-[750px] select-none">
           <div
-            className="relative transition-transform duration-200 w-full max-w-md aspect-[3/4] rounded-xl border border-zinc-700/80 bg-zinc-900 shadow-2xl flex flex-col overflow-hidden"
-            style={{ transform: `scale(${zoom})` }}
+            className="relative transition-transform duration-200 w-full max-w-[500px] aspect-[1240/1754] rounded-xl border border-zinc-700/80 bg-zinc-900 shadow-2xl flex-shrink-0"
+            style={{ transform: `scale(${zoom})`, transformOrigin: 'top center' }}
           >
             {documentUrl && !imageError ? (
-              <div className="relative w-full h-full flex items-center justify-center bg-zinc-950 p-2 overflow-hidden">
+              <div className="relative w-full h-full rounded-xl overflow-hidden">
                 <img
                   src={documentUrl}
                   alt={documentName}
                   onError={() => setImageError(true)}
-                  className="w-full h-full object-contain rounded-lg"
+                  className="w-full h-full object-fill rounded-xl"
                 />
+
+                {/* Bounding Box Overlays placed right over the image in the exact coordinate space */}
+                {showBoundingBoxes &&
+                  fields.map((f) => {
+                    if (!f.boundingBox) return null;
+                    const [top, left, width, height] = f.boundingBox;
+                    const isSelected = activeFieldId === f.id;
+                    const isMatch = f.status === 'MATCH';
+
+                    return (
+                      <div
+                        key={f.id}
+                        onClick={() => setActiveFieldId(f.id)}
+                        onMouseEnter={() => setActiveFieldId(f.id)}
+                        className={cn(
+                          'absolute cursor-pointer rounded transition-all duration-200 border-2',
+                          isSelected
+                            ? 'border-blue-400 bg-blue-500/25 shadow-lg shadow-blue-500/30 scale-[1.01] z-20 ring-2 ring-blue-400/60'
+                            : isMatch
+                            ? 'border-emerald-500/70 bg-emerald-500/10 hover:border-blue-400 hover:bg-blue-500/20 z-10'
+                            : 'border-red-500/80 bg-red-500/15 hover:border-red-400 hover:bg-red-500/25 z-10'
+                        )}
+                        style={{
+                          top: `${top}%`,
+                          left: `${left}%`,
+                          width: `${width}%`,
+                          height: `${height}%`,
+                        }}
+                      >
+                        <span
+                          className={cn(
+                            'absolute rounded px-1.5 py-0.5 text-[9px] font-mono font-bold tracking-tight shadow-md z-30 whitespace-nowrap pointer-events-none',
+                            top < 6 ? 'top-0.5 left-0.5' : '-top-4 left-0',
+                            isSelected
+                              ? 'bg-blue-600 text-white shadow-blue-500/40'
+                              : isMatch
+                              ? 'bg-zinc-950/90 text-emerald-300 border border-emerald-500/50'
+                              : 'bg-red-600 text-white'
+                          )}
+                        >
+                          {f.label} ({isMatch ? `${Math.round(f.confidence * 100)}%` : 'MISMATCH'})
+                        </span>
+                      </div>
+                    );
+                  })}
               </div>
             ) : (
-              <div className="flex flex-col h-full p-6">
+              <div className="relative w-full h-full p-6 flex flex-col justify-between overflow-hidden">
                 {/* Mock physical receipt document canvas texture */}
                 <div className="flex items-center justify-between border-b border-zinc-700 pb-3">
                   <div>
@@ -247,52 +425,53 @@ export function SideBySideDocumentVerifier({
                     </div>
                   </div>
                 </div>
+
+                {/* Bounding Box Overlays for texture fallback */}
+                {showBoundingBoxes &&
+                  fields.map((f) => {
+                    if (!f.boundingBox) return null;
+                    const [top, left, width, height] = f.boundingBox;
+                    const isSelected = activeFieldId === f.id;
+                    const isMatch = f.status === 'MATCH';
+
+                    return (
+                      <div
+                        key={f.id}
+                        onClick={() => setActiveFieldId(f.id)}
+                        onMouseEnter={() => setActiveFieldId(f.id)}
+                        className={cn(
+                          'absolute cursor-pointer rounded transition-all duration-200 border-2',
+                          isSelected
+                            ? 'border-blue-400 bg-blue-500/25 shadow-lg shadow-blue-500/30 scale-[1.01] z-20'
+                            : isMatch
+                            ? 'border-emerald-500/60 bg-emerald-500/10 hover:border-blue-400 hover:bg-blue-500/20 z-10'
+                            : 'border-red-500/70 bg-red-500/15 hover:border-red-400 hover:bg-red-500/25 z-10'
+                        )}
+                        style={{
+                          top: `${top}%`,
+                          left: `${left}%`,
+                          width: `${width}%`,
+                          height: `${height}%`,
+                        }}
+                      >
+                        <span
+                          className={cn(
+                            'absolute rounded px-1.5 py-0.5 text-[9px] font-mono font-bold tracking-tight shadow-md z-30 whitespace-nowrap pointer-events-none',
+                            top < 6 ? 'top-0.5 left-0.5' : '-top-4 left-0',
+                            isSelected
+                              ? 'bg-blue-600 text-white'
+                              : isMatch
+                              ? 'bg-zinc-950/90 text-zinc-200 border border-emerald-500/40'
+                              : 'bg-red-600 text-white'
+                          )}
+                        >
+                          {f.label} ({isMatch ? `${Math.round(f.confidence * 100)}%` : 'MISMATCH'})
+                        </span>
+                      </div>
+                    );
+                  })}
               </div>
             )}
-
-            {/* Bounding Box Overlays */}
-            {showBoundingBoxes &&
-              fields.map((f) => {
-                if (!f.boundingBox) return null;
-                const [top, left, width, height] = f.boundingBox;
-                const isSelected = activeFieldId === f.id;
-                const isMatch = f.status === 'MATCH';
-
-                return (
-                  <div
-                    key={f.id}
-                    onClick={() => setActiveFieldId(f.id)}
-                    onMouseEnter={() => setActiveFieldId(f.id)}
-                    className={cn(
-                      'absolute cursor-pointer rounded transition-all duration-200 border-2',
-                      isSelected
-                        ? 'border-blue-400 bg-blue-500/25 shadow-lg shadow-blue-500/30 scale-[1.02] z-20 animate-pulse'
-                        : isMatch
-                        ? 'border-emerald-500/60 bg-emerald-500/10 hover:border-blue-400 hover:bg-blue-500/20 z-10'
-                        : 'border-red-500/70 bg-red-500/15 hover:border-red-400 hover:bg-red-500/25 z-10'
-                    )}
-                    style={{
-                      top: `${top}%`,
-                      left: `${left}%`,
-                      width: `${width}%`,
-                      height: `${height}%`,
-                    }}
-                  >
-                    <span
-                      className={cn(
-                        'absolute -top-4 left-0 rounded px-1 text-[9px] font-mono font-bold tracking-tight',
-                        isSelected
-                          ? 'bg-blue-600 text-white'
-                          : isMatch
-                          ? 'bg-zinc-800 text-zinc-300'
-                          : 'bg-red-600 text-white'
-                      )}
-                    >
-                      {f.label} ({isMatch ? `${Math.round(f.confidence * 100)}%` : 'MISMATCH'})
-                    </span>
-                  </div>
-                );
-              })}
           </div>
         </div>
 

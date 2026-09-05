@@ -198,7 +198,7 @@ function AdminDashboardContent() {
       color: 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20',
     },
     {
-      label: 'Manual Review & Aegis Queue',
+      label: 'Manual Review Queue',
       value: String(
         allTxns.filter((t) => ['MANUAL_REVIEW', 'VERIFICATION_FAILED'].includes(t.status)).length
       ),
@@ -219,7 +219,7 @@ function AdminDashboardContent() {
             </span>
           </h1>
           <p className="text-sm text-zinc-500">
-            Aegis forensic interception overrides, nodal settlement monitoring, and role governance.
+            Compliance review overrides, nodal settlement monitoring, and role governance.
           </p>
         </div>
       </div>
@@ -252,7 +252,7 @@ function AdminDashboardContent() {
       {/* ── 3rd-Party Gateway Resilience & Graceful Fallback Telemetry (Admin Operations Only) ── */}
       <SystemHealthDegradationBar transactions={allTxns} onRefresh={load} />
 
-      {/* ── Action Inbox Data Table with Aegis Security Drawer & Cmd+K ── */}
+      {/* ── Action Inbox Data Table with Security Drawer & Cmd+K ── */}
       <ActionInboxDashboard
         transactions={allTxns}
         role="ADMIN"

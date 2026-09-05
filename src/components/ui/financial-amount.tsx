@@ -80,7 +80,7 @@ export function FinancialAmount({
       textClass = 'text-red-400 font-semibold line-through decoration-red-500';
       badgeClass = 'bg-red-500/15 text-red-300 border-red-500/30';
       badgeLabel = 'Disputed / Held';
-      defaultTooltip = 'Held: Escrow release blocked by Aegis Firewall or manual dispute.';
+      defaultTooltip = 'Held: Escrow release awaiting manual review or dispute resolution.';
       Icon = AlertTriangle;
       break;
 

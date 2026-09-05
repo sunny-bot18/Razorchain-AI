@@ -15,7 +15,17 @@ export function formatINR(amount: number) {
 
 export function formatDate(value: string | Date | null | undefined) {
   if (!value) return '—';
-  return new Date(value).toLocaleDateString('en-IN', {
+  if (typeof value === 'string') {
+    const clean = value.trim().toLowerCase();
+    if (clean.startsWith('(') || clean.includes('not found') || clean.includes('missing') || clean.includes('invalid')) {
+      return '—';
+    }
+  }
+  const d = new Date(value);
+  if (isNaN(d.getTime())) {
+    return typeof value === 'string' && value.trim() ? value : '—';
+  }
+  return d.toLocaleDateString('en-IN', {
     day: 'numeric',
     month: 'short',
     year: 'numeric',
@@ -24,7 +34,17 @@ export function formatDate(value: string | Date | null | undefined) {
 
 export function formatDateTime(value: string | Date | null | undefined) {
   if (!value) return '—';
-  return new Date(value).toLocaleString('en-IN', {
+  if (typeof value === 'string') {
+    const clean = value.trim().toLowerCase();
+    if (clean.startsWith('(') || clean.includes('not found') || clean.includes('missing') || clean.includes('invalid')) {
+      return '—';
+    }
+  }
+  const d = new Date(value);
+  if (isNaN(d.getTime())) {
+    return typeof value === 'string' && value.trim() ? value : '—';
+  }
+  return d.toLocaleString('en-IN', {
     day: 'numeric',
     month: 'short',
     year: 'numeric',

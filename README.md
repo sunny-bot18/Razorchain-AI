@@ -40,7 +40,7 @@ You can test the entire end-to-end workflow using these pre-seeded enterprise ac
 
 - **Payment Settlement**: Uses the official Razorpay Node SDK when `RAZORCHAIN_PAYMENT_PROVIDER=razorpay` with valid `RAZORPAY_KEY_ID` and `RAZORPAY_KEY_SECRET`. By default, it operates in a self-contained simulated nodal chamber—no real bank funds are debited or transferred.
 - **Multimodal AI Verification**: Powered by Google's GA `gemini-2.5-flash` model when `GOOGLE_API_KEY` is configured. The platform includes a **GeminiKeyPool** with round-robin load balancing and automatic cooldown failovers. Without an API key, an offline deterministic fixture parser is used for reproducible testing.
-- **Dual-Layer Persistence on Serverless**: Uploaded evidence files are stored in writable serverless `/tmp` while simultaneously encoded into PostgreSQL (`schema.documents.forensicMetadata.contentBase64`) for serverless container rehydration across ephemeral Lambda cold starts.
+- **Dual-Layer Persistence on Serverless**: Uploaded evidence files are stored in writable serverless `/tmp` while simultaneously encoded into PostgreSQL for serverless container rehydration across ephemeral Lambda cold starts.
 - **Four-Eyes Governance (Maker-Checker)**: High-value transactions (≥ ₹10,00,000) require dual counterparty multi-sig approval (Step 1: Buyer release authorization, Step 2: Seller settlement acceptance) before funds can be disbursed.
 - **Cryptographic Auditability**: Generates tamper-evident PDF Settlement Certificates signed with HMAC-SHA256 and Merkle-tree anchored audit dossiers verifiable against cryptographic proofs.
 
@@ -53,8 +53,8 @@ Buyer / Seller / Admin UI  ──( Next.js 16 App Router )──>  API Route Han
                                                                    │
     ┌──────────────────────────────────────────────────────────────┴──────────────────────────────┐
     ▼                                                              ▼                              ▼
-Contract Agent                                             Vision Agent + Aegis          Deterministic Verification
-(Gemini 2.5 Flash / Schema Validation)                     (Multimodal OCR & Anti-Fraud)   (PO, Line Items & SLA checks)
+Contract Agent                                             Vision Agent                  Deterministic Verification
+(Gemini 2.5 Flash / Schema Validation)                     (Multimodal OCR Extraction)    (PO, Line Items & SLA checks)
     │                                                              │                              │
     └──────────────────────────────────────────────────────────────┼──────────────────────────────┘
                                                                    ▼
@@ -72,7 +72,7 @@ Contract Agent                                             Vision Agent + Aegis 
 
 The LLM extracts structured data from multi-format evidence (PDF invoices, delivery receipts, bills of lading, consignment photos). `verification-engine.ts` mathematically cross-checks invoice line items, recipient signatures, and GPS coordinates against the purchase contract. Capture is authorized only when:
 1. Verification result is `APPROVED` with confidence above threshold (or verified via auditable Admin override).
-2. Aegis security check confirms `SAFE` (free of adversarial prompt injections or duplicate hash collisions).
+2. Security check confirms `SAFE` (free of prompt injections or adversarial instruction overrides).
 3. Payment reservation is `AUTHORIZED` in the escrow chamber.
 4. Multi-sig dual signatures are satisfied for high-value orders.
 5. No prior payment execution exists (strict idempotency).
@@ -85,7 +85,7 @@ The LLM extracts structured data from multi-format evidence (PDF invoices, deliv
 2. **Escrow Reservation**: Dedicated Virtual Account (VAN) is generated with partner bank IFSC (Axis / Yes Bank / HDFC) and funds are irrevocably locked.
 3. **Carrier & Consignee Attestation**: Carrier records tracking and consignee receiver submits GPS-stamped physical delivery attestation.
 4. **Evidence Upload**: Seller submits invoice, consignment receipt, and delivery challan (dual-persisted to disk + database).
-5. **AI Multi-Agent Verification**: Gemini Vision Agent extracts data, Aegis screens for prompt injections, and the verification engine grades confidence.
+5. **AI Multi-Agent Verification**: Gemini Vision Agent extracts data, input security filters screen for prompt injections, and the verification engine grades confidence.
 6. **Dispute / Triage Handling**: If discrepancies exist, auto-release timers halt; operations analysts can review via Manual Vision Triage or resolve disputes.
 7. **Four-Eyes Dual Multi-Sig**: High-value disbursements require independent cryptographic signatures from both Buyer and Seller.
 8. **Disbursement & Certification**: Funds are released to the seller, and both parties receive a cryptographically signed PDF Settlement Certificate and Merkle Audit Dossier.
@@ -131,7 +131,7 @@ npm run dev
 
 ## 🧪 Quality Checks & Test Suite
 
-The project includes an automated test suite verifying financial calculations, Merkle trees, forensic checks, and complete order lifecycle flows:
+The project includes an automated test suite verifying financial calculations, Merkle trees, contract verification, and complete order lifecycle flows:
 
 ```bash
 # Run all Vitest unit and integration test suites

@@ -54,9 +54,51 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     await db.update(schema.transactions).set({ status: nextStatus, updatedAt: new Date() }).where(eq(schema.transactions.id, txUuid));
     await db.update(schema.verificationResults).set({
       status: body.data.decision,
+      confidence: body.data.decision === 'APPROVED' ? 1.0 : 0.0,
+      failedChecks: body.data.decision === 'APPROVED' ? [] : ['admin_override_rejected'],
       reason: `${body.data.reason} (human override by ${user.email})`,
       updatedAt: new Date(),
     }).where(eq(schema.verificationResults.transactionId, txUuid));
+
+    if (body.data.decision === 'APPROVED') {
+      const [existingSc] = await db
+        .select()
+        .from(schema.securityChecks)
+        .where(eq(schema.securityChecks.transactionId, txUuid))
+        .limit(1);
+
+      if (existingSc) {
+        await db
+          .update(schema.securityChecks)
+          .set({
+            status: 'SAFE',
+            riskScore: 0.05,
+            flags: [],
+            details: {
+              ...(typeof existingSc.details === 'object' && existingSc.details ? existingSc.details : {}),
+              adminOverride: true,
+              overriddenBy: user.email,
+              overriddenAt: new Date().toISOString(),
+              reason: body.data.reason,
+            },
+          })
+          .where(eq(schema.securityChecks.transactionId, txUuid));
+      } else {
+        await db.insert(schema.securityChecks).values({
+          transactionId: txUuid,
+          riskScore: 0.05,
+          status: 'SAFE',
+          flags: [],
+          details: {
+            adminOverride: true,
+            overriddenBy: user.email,
+            overriddenAt: new Date().toISOString(),
+            reason: body.data.reason,
+          },
+        });
+      }
+    }
+
     await db.insert(schema.auditLogs).values({
       transactionId: txUuid,
       userId: user.id,
@@ -64,7 +106,13 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       event: nextStatus === 'REFUNDED' ? 'REFUND_REQUESTED' : 'MANUAL_REVIEW_RESOLVED',
       action: body.data.decision === 'APPROVED' ? 'RESOLVE' : 'REFUND',
       result: 'SUCCESS',
-      metadata: { from: transaction.status, to: nextStatus, decision: body.data.decision, reason: body.data.reason },
+      metadata: {
+        from: transaction.status,
+        to: nextStatus,
+        decision: body.data.decision,
+        reason: body.data.reason,
+        securityOverride: body.data.decision === 'APPROVED',
+      },
     });
     return Response.json({ status: nextStatus, decision: body.data.decision });
   } catch (error) {

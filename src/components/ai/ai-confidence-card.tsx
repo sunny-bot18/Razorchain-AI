@@ -2,18 +2,14 @@
 
 import React from 'react';
 import {
-  ShieldCheck,
-  ShieldAlert,
-  AlertTriangle,
-  CheckCircle2,
   Sparkles,
-  Info,
-  Layers,
-  FileSearch,
+  CheckCircle2,
+  AlertTriangle,
   FileCheck,
-  Lock,
   FileX,
   Clock,
+  FileSearch,
+  ShieldCheck,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { ForensicBadge } from './forensic-tooltip';
@@ -30,6 +26,18 @@ interface AiConfidenceCardProps {
   onInspectDiscrepancies?: () => void;
 }
 
+const FORENSIC_FLAG_KEYS = new Set([
+  'EXIF_MISSING',
+  'EXIF_STRIPPED',
+  'EXIF_METADATA_STRIPPED',
+  'SYNTHETIC_OR_STRIPPED',
+  'ELA_TAMPER_DETECTED',
+  'SYNTHETIC_NOISE_PATTERN_DETECTED',
+  'PERCEPTUAL_DUPLICATE_DETECTED',
+  'EXIF_TIMESTAMP_FUTURE',
+  'DUPLICATE_DOCUMENT_OVERRIDDEN',
+]);
+
 export function AiConfidenceCard({
   confidence,
   status,
@@ -41,11 +49,16 @@ export function AiConfidenceCard({
   className,
   onInspectDiscrepancies,
 }: AiConfidenceCardProps) {
-  // Verification has only actually run if we have a real confidence score, completed status, or explicit security/check flags
+  // Filter out any lingering camera/forensic flags
+  const contractFailedChecks = failedChecks.filter(
+    (f) => !FORENSIC_FLAG_KEYS.has(f.toUpperCase().replace(/\s+/g, '_'))
+  );
+
+  // Verification has run if we have a confidence score, completed status, or explicit failed checks
   const hasRunVerification =
     confidence != null ||
     ['VERIFIED', 'VERIFICATION_FAILED'].includes(status || '') ||
-    (status === 'MANUAL_REVIEW' && (securityFlags.length > 0 || failedChecks.length > 0));
+    (status === 'MANUAL_REVIEW' && contractFailedChecks.length > 0);
 
   const isPreVerification = !hasRunVerification;
 
@@ -57,9 +70,10 @@ export function AiConfidenceCard({
         : Math.round(confidence)
       : null;
 
-  const hasForensicFlags = hasRunVerification && (securityFlags.length > 0 || (riskScore != null && riskScore >= 0.8));
-  const hasContractDiscrepancies = hasRunVerification && (failedChecks.length > 0 || (contentMatchPercent != null && contentMatchPercent < 85));
-  const totalDiscrepancies = hasRunVerification ? failedChecks.length + securityFlags.length : 0;
+  const hasContractDiscrepancies =
+    hasRunVerification &&
+    (contractFailedChecks.length > 0 || (contentMatchPercent != null && contentMatchPercent < 85));
+  const totalDiscrepancies = hasRunVerification ? contractFailedChecks.length : 0;
 
   const isCleanApproved =
     hasRunVerification &&
@@ -80,17 +94,8 @@ export function AiConfidenceCard({
     headerBadge = 'bg-zinc-800 text-zinc-400 border-zinc-700';
     HeaderIcon = Clock;
     headerTitle = 'AI Verification: Awaiting Delivery Proof';
-    headerSubtitle = 'Automated OCR extraction and Aegis forensic scan will execute once delivery evidence is uploaded.';
-  } else if (hasForensicFlags) {
-    // 1. True Forensic Interception (Deepfakes, missing EXIF, ELA tampering)
-    cardBorder = 'border-red-500/40 bg-gradient-to-br from-red-950/30 via-zinc-900 to-zinc-950 shadow-red-950/20';
-    headerBadge = 'bg-red-500/15 text-red-300 border-red-500/40';
-    HeaderIcon = ShieldAlert;
-    headerTitle = 'Aegis Firewall: Forensic Interception';
-    headerSubtitle =
-      'Image provenance or camera metadata failed security policy (EXIF stripped or synthetic noise detected).';
-  } else if (failedChecks.length > 0 || (contentMatchPercent != null && contentMatchPercent < 85 && status === 'VERIFICATION_FAILED')) {
-    // 2. OCR Contract Term Mismatch (Wrong PO, Shortage, Date Mismatch)
+    headerSubtitle = 'Automated OCR extraction and contract comparison will execute once delivery evidence is uploaded.';
+  } else if (hasContractDiscrepancies || (contentMatchPercent != null && contentMatchPercent < 85 && status === 'VERIFICATION_FAILED')) {
     cardBorder = 'border-amber-500/40 bg-gradient-to-br from-amber-950/30 via-zinc-900 to-zinc-950 shadow-amber-950/20';
     headerBadge = 'bg-amber-500/15 text-amber-300 border-amber-500/40';
     HeaderIcon = FileX;
@@ -98,12 +103,11 @@ export function AiConfidenceCard({
     headerSubtitle =
       'Physical document evidence does not match contract terms (PO number, delivery date, or quantity mismatch).';
   } else if (isCleanApproved) {
-    // 3. Clean & Approved
     cardBorder = 'border-emerald-500/30 bg-gradient-to-br from-emerald-950/30 via-zinc-900 to-zinc-950 shadow-emerald-950/20';
     headerBadge = 'bg-emerald-500/15 text-emerald-300 border-emerald-500/40';
     HeaderIcon = ShieldCheck;
     headerTitle = 'AI Verification: Clean & Approved';
-    headerSubtitle = '100% match across contract line items, delivery address, timestamps, and camera provenance.';
+    headerSubtitle = '100% match across contract line items, delivery address, timestamps, and recipient confirmation.';
   } else if (status === 'MANUAL_REVIEW') {
     cardBorder = 'border-amber-500/30 bg-gradient-to-br from-amber-950/30 via-zinc-900 to-zinc-950 shadow-amber-950/20';
     headerBadge = 'bg-amber-500/15 text-amber-300 border-amber-500/40';
@@ -120,7 +124,7 @@ export function AiConfidenceCard({
           <div className="flex items-center gap-2">
             <span className="flex items-center gap-1.5 text-[11px] font-mono font-bold uppercase tracking-wider text-zinc-400">
               <Sparkles className="h-3.5 w-3.5 text-blue-400" />
-              Gemini VisionAgent & Aegis Firewall
+              Gemini VisionAgent & Verification Engine
             </span>
           </div>
           <h2 className="text-lg font-bold text-zinc-100 flex items-center gap-2">
@@ -142,8 +146,6 @@ export function AiConfidenceCard({
             <HeaderIcon className="h-3.5 w-3.5" />
             {isPreVerification
               ? 'Awaiting Evidence'
-              : hasForensicFlags
-              ? 'Blocked by Aegis'
               : hasContractDiscrepancies
               ? 'Contract Mismatch'
               : isCleanApproved
@@ -161,13 +163,12 @@ export function AiConfidenceCard({
         </div>
       </div>
 
-      {/* ── Two-Dimensional Metric Breakdown: Content Match vs Forensic Provenance ── */}
-      <div className="mt-5 grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
-        {/* Dimension 1: Contract Content Matching */}
-        <div className="rounded-xl border border-zinc-800 bg-zinc-950/70 p-3.5 space-y-2">
+      {/* ── Contract OCR Content Matching Progress Metric ── */}
+      <div className="mt-5 pt-2">
+        <div className="rounded-xl border border-zinc-800 bg-zinc-950/70 p-4 space-y-2.5">
           <div className="flex items-center justify-between">
             <span className="text-xs font-semibold text-zinc-300 flex items-center gap-1.5">
-              <FileCheck className="h-3.5 w-3.5 text-blue-400" />
+              <FileCheck className="h-4 w-4 text-blue-400" />
               Contract OCR Content Match
             </span>
             {contentMatchPercent != null ? (
@@ -183,7 +184,7 @@ export function AiConfidenceCard({
               <span className="text-xs font-mono text-zinc-500">Pending</span>
             )}
           </div>
-          <div className="h-1.5 w-full overflow-hidden rounded-full bg-zinc-800">
+          <div className="h-2 w-full overflow-hidden rounded-full bg-zinc-800">
             <div
               className={cn(
                 'h-full rounded-full transition-all duration-700',
@@ -192,70 +193,28 @@ export function AiConfidenceCard({
               style={{ width: `${contentMatchPercent || 0}%` }}
             />
           </div>
-          <p className="text-[11px] text-zinc-500">
+          <p className="text-xs text-zinc-400">
             {isPreVerification
               ? 'Awaiting delivery challan upload from seller.'
-              : failedChecks.length > 0
-              ? `${failedChecks.length} line-item check(s) failed: ${failedChecks.map((f) => f.replace(/_/g, ' ')).join(', ')}.`
+              : contractFailedChecks.length > 0
+              ? `${contractFailedChecks.length} line-item check(s) failed: ${contractFailedChecks.map((f) => f.replace(/_/g, ' ')).join(', ')}.`
               : contentMatchPercent != null && contentMatchPercent < 85
               ? 'Contract line-item discrepancies detected against specifications.'
-              : 'PO #, quantity, recipient name, and dates match.'}
-          </p>
-        </div>
-
-        {/* Dimension 2: Forensic Security & Camera Provenance */}
-        <div className="rounded-xl border border-zinc-800 bg-zinc-950/70 p-3.5 space-y-2">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-zinc-300 flex items-center gap-1.5">
-              <Lock className="h-3.5 w-3.5 text-indigo-400" />
-              Forensic Security & Provenance
-            </span>
-            <span
-              className={cn(
-                'text-xs font-mono font-bold',
-                isPreVerification
-                  ? 'text-zinc-500 font-normal'
-                  : hasForensicFlags
-                  ? 'text-red-400'
-                  : 'text-emerald-400'
-              )}
-            >
-              {isPreVerification ? 'Pending (Not Run)' : hasForensicFlags ? 'FLAGGED / BLOCKED' : 'PASS (Clean)'}
-            </span>
-          </div>
-          <div className="h-1.5 w-full overflow-hidden rounded-full bg-zinc-800">
-            <div
-              className={cn(
-                'h-full rounded-full transition-all duration-700',
-                isPreVerification ? 'bg-zinc-700' : hasForensicFlags ? 'bg-red-500' : 'bg-emerald-500'
-              )}
-              style={{ width: isPreVerification ? '0%' : '100%' }}
-            />
-          </div>
-          <p className="text-[11px] text-zinc-500">
-            {isPreVerification
-              ? 'Camera hardware EXIF & ELA scan will execute on receipt upload.'
-              : hasForensicFlags
-              ? `${securityFlags.length} security anomaly detected (EXIF, ELA, or bitstream).`
-              : 'Camera hardware metadata and compression curves verified.'}
+              : 'PO #, quantity, recipient name, delivery address, and dates match.'}
           </p>
         </div>
       </div>
 
-      {/* ── Contextual Forensic Tooltips & Badges ── */}
+      {/* ── Active Contract Discrepancy Flags (No Camera / Forensic Metadata Flags) ── */}
       {!isPreVerification && (() => {
         const canonicalSet = new Set<string>();
         const uniqueFlags: string[] = [];
 
-        const normalizeKey = (f: string) => {
-          const k = f.toUpperCase().replace(/\s+/g, '_');
-          if (k === 'EXIF_METADATA_STRIPPED' || k === 'EXIF_STRIPPED') return 'EXIF_MISSING';
-          return k;
-        };
+        const normalizeKey = (f: string) => f.toUpperCase().replace(/\s+/g, '_');
 
-        [...securityFlags, ...failedChecks].forEach((flag) => {
+        contractFailedChecks.forEach((flag) => {
           const k = normalizeKey(flag);
-          if (!canonicalSet.has(k)) {
+          if (!FORENSIC_FLAG_KEYS.has(k) && !canonicalSet.has(k)) {
             canonicalSet.add(k);
             uniqueFlags.push(flag);
           }
@@ -266,7 +225,7 @@ export function AiConfidenceCard({
         return (
           <div className="mt-4 pt-3 border-t border-zinc-800/80 space-y-2">
             <p className="text-[11px] font-semibold text-zinc-400 uppercase tracking-wider">
-              Active Discrepancy & Forensic Flags (Hover for explanation):
+              Active Contract Discrepancies (Hover for explanation):
             </p>
             <div className="flex flex-wrap gap-2">
               {uniqueFlags.map((flag) => (

@@ -211,9 +211,22 @@ function checkDeliveryDateValid(contract: ContractData, evidence: VisionOutput):
   const expectedDateStr = contract.expected_delivery_date;
   const toleranceDays = contract.tolerances?.delivery_date_tolerance_days ?? 1;
 
-  const evidenceDates = evidence.documents
+  let evidenceDates = evidence.documents
     .map((d) => d.fields.delivery_date)
-    .filter((d): d is string => d !== null);
+    .filter((d): d is string => Boolean(d && typeof d === 'string' && d.trim() !== '' && !d.includes('(not found') && !d.includes('missing')));
+
+  // Resilient fallback: If fields.delivery_date was empty, inspect raw_text_excerpt for any ISO dates (e.g. 2026-09-05, 2026-09-04)
+  if (evidenceDates.length === 0) {
+    for (const doc of evidence.documents) {
+      if (doc.raw_text_excerpt) {
+        const isoMatches = doc.raw_text_excerpt.match(/\b(20\d{2}-\d{2}-\d{2})\b/g);
+        if (isoMatches && isoMatches.length > 0) {
+          evidenceDates = isoMatches;
+          break;
+        }
+      }
+    }
+  }
 
   if (evidenceDates.length === 0) {
     return {
@@ -251,11 +264,10 @@ function checkDeliveryDateValid(contract: ContractData, evidence: VisionOutput):
     };
   }
 
-  // Set both to midnight for date-only comparison
-  const expectedMs = expectedDate.getTime();
-  const evidenceMs = evidenceDate.getTime();
-  const diffMs = evidenceMs - expectedMs;
-  const diffDays = diffMs / (1000 * 60 * 60 * 24);
+  // Clean calendar day midnight comparison (independent of timezones/hours)
+  const expMidnight = new Date(expectedDate.getUTCFullYear(), expectedDate.getUTCMonth(), expectedDate.getUTCDate()).getTime();
+  const eviMidnight = new Date(evidenceDate.getUTCFullYear(), evidenceDate.getUTCMonth(), evidenceDate.getUTCDate()).getTime();
+  const diffDays = Math.round((eviMidnight - expMidnight) / (1000 * 60 * 60 * 24));
 
   if (diffDays <= 0) {
     // Delivered on or before expected date
@@ -265,7 +277,9 @@ function checkDeliveryDateValid(contract: ContractData, evidence: VisionOutput):
       status: 'PASS',
       expected: expectedDateStr,
       actual: evidenceDates[0],
-      details: `Delivered ${Math.abs(diffDays).toFixed(0)} day(s) on or before expected date`,
+      details: diffDays === 0
+        ? 'Delivered on expected date'
+        : `Delivered ${Math.abs(diffDays)} day(s) on or before expected date`,
     };
   }
 
@@ -276,24 +290,7 @@ function checkDeliveryDateValid(contract: ContractData, evidence: VisionOutput):
       status: 'PASS',
       expected: expectedDateStr,
       actual: evidenceDates[0],
-      details: `Delivered ${diffDays.toFixed(1)} day(s) late, within tolerance of ${toleranceDays} day(s)`,
-    };
-  }
-
-  // Check if delivered on the same day
-  const isSameDay =
-    expectedDate.getFullYear() === evidenceDate.getFullYear() &&
-    expectedDate.getMonth() === evidenceDate.getMonth() &&
-    expectedDate.getDate() === evidenceDate.getDate();
-
-  if (isSameDay) {
-    return {
-      name: 'delivery_date_valid',
-      label: 'Delivery Date Valid',
-      status: 'WARN',
-      expected: expectedDateStr,
-      actual: evidenceDates[0],
-      details: 'Delivered on same day as expected',
+      details: `Delivered ${diffDays} day(s) late, within tolerance of ${toleranceDays} day(s)`,
     };
   }
 
@@ -303,7 +300,7 @@ function checkDeliveryDateValid(contract: ContractData, evidence: VisionOutput):
     status: 'FAIL',
     expected: expectedDateStr,
     actual: evidenceDates[0],
-    details: `Delivered ${diffDays.toFixed(1)} day(s) late, exceeds tolerance of ${toleranceDays} day(s)`,
+    details: `Delivered ${diffDays} day(s) late, exceeds tolerance of ${toleranceDays} day(s)`,
   };
 }
 

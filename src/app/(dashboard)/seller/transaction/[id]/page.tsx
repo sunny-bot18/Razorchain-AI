@@ -19,6 +19,9 @@ import {
   MessageSquare,
   Send,
   Download,
+  Sparkles,
+  ExternalLink,
+  FilePlus2,
 } from 'lucide-react';
 import StatusBadge from '@/components/status-badge';
 import { formatDate, formatINR } from '@/lib/utils';
@@ -196,6 +199,25 @@ function DocGuideCard({ guide }: { guide: DocGuide }) {
   );
 }
 
+const DEMO_FIXTURES_SET_1 = [
+  { file: '1_clean_delivery_challan.jpg', label: '1. Delivery Challan', desc: '500 units, Bengaluru (PO-2026-1045)' },
+  { file: '2_commercial_tax_invoice.jpg', label: '2. Tax Invoice', desc: '₹10,000 GST invoice (PO-2026-1045)' },
+  { file: '3_carrier_bluedart_airwaybill.jpg', label: '3. BlueDart AWB', desc: 'Carrier logistics consignment note' },
+  { file: '4_tampered_quantity_fraud.jpg', label: '4. Tampered Fraud', desc: 'Contract discrepancy mismatch test' },
+  { file: '5_cnc_actuators_delivery_proof.jpg', label: '5. CNC Actuators', desc: '₹4.5L Servo actuators (PO-2026-AI-881)' },
+];
+
+const DEMO_FIXTURES_SET_2 = [
+  { file: '6_goods_receipt_note_grn.jpg', label: '6. Inward GRN', desc: 'Warehouse QA acceptance (PO-2026-1045)' },
+  { file: '7_medical_stents_delivery_challan.jpg', label: '7. Medical Stents Challan', desc: '1,200 stents cold-chain (PO-2026-LOG-402)' },
+  { file: '8_medical_stents_tax_invoice.jpg', label: '8. Medical Tax Invoice', desc: '₹12,00,000 GST invoice (PO-2026-LOG-402)' },
+  { file: '9_solar_pv_cells_delivery_challan.jpg', label: '9. Solar PV Challan', desc: '3,000 PV cells ₹25L (PO-2026-BANK-770)' },
+  { file: '10_address_mismatch_wrong_warehouse.jpg', label: '10. Address Mismatch', desc: 'Misrouted to Mumbai/Bhiwandi test' },
+  { file: '11_short_shipment_partial_delivery.jpg', label: '11. Short Shipment', desc: '420 delivered vs 500 ordered test' },
+  { file: '12_expired_sla_delayed_delivery.jpg', label: '12. Delayed Delivery', desc: '25-day late delivery SLA test' },
+  { file: '13_transporter_lorry_receipt_lr.jpg', label: '13. Transporter LR (Bilty)', desc: 'V-Trans road consignment receipt' },
+];
+
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function SellerTransactionPage() {
@@ -213,6 +235,8 @@ export default function SellerTransactionPage() {
   const [carrier, setCarrier] = useState('');
   const [trackingSubmitting, setTrackingSubmitting] = useState(false);
   const [trackingNotice, setTrackingNotice] = useState<string | null>(null);
+  const [allowDuplicateMode, setAllowDuplicateMode] = useState(false);
+  const [demoSetTab, setDemoSetTab] = useState<'set2' | 'set1'>('set2');
   const [messageInput, setMessageInput] = useState('');
   const [messageSending, setMessageSending] = useState(false);
   const [signingMultiSig, setSigningMultiSig] = useState(false);
@@ -261,7 +285,27 @@ export default function SellerTransactionPage() {
     setFiles(selected);
   };
 
-  const upload = async () => {
+  const attachDemoFile = async (fileName: string) => {
+    try {
+      setUploading(true);
+      setError(null);
+      const res = await fetch(`/demo-docs/${fileName}`);
+      if (!res.ok) throw new Error(`Could not load demo document: ${fileName}`);
+      const blob = await res.blob();
+      const file = new File([blob], fileName, { type: 'image/jpeg' });
+      setFiles((prev) => {
+        const exists = prev.some((f) => f.name === fileName);
+        return exists ? prev : [...prev, file];
+      });
+      setNotice(`Ready to upload demo document "${fileName}".`);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to load demo document');
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const upload = async (forceAllowDuplicate = false) => {
     if (!files.length) return;
     setUploading(true);
     setError(null);
@@ -269,6 +313,9 @@ export default function SellerTransactionPage() {
     try {
       const body = new FormData();
       files.forEach((f) => body.append('files', f));
+      if (forceAllowDuplicate || allowDuplicateMode) {
+        body.append('allowDuplicate', 'true');
+      }
       const res = await fetch(`/api/transactions/${id}/documents`, {
         method: 'POST',
         credentials: 'include',
@@ -280,6 +327,7 @@ export default function SellerTransactionPage() {
         throw new Error(result.errors[0]?.error || 'Document validation failed');
       }
       setFiles([]);
+      setAllowDuplicateMode(false);
       setNotice(
         `${result.uploadedCount} file${result.uploadedCount !== 1 ? 's' : ''} uploaded successfully. The buyer can now run verification.`,
       );
@@ -690,6 +738,79 @@ export default function SellerTransactionPage() {
 
             {canUpload ? (
               <>
+                {/* ── Live Demo Document Suite ── */}
+                <div className="mb-5 rounded-xl border border-zinc-800 bg-zinc-950/70 p-4">
+                  <div className="flex flex-wrap items-center justify-between gap-2 border-b border-zinc-800/80 pb-3">
+                    <div className="flex items-center gap-2">
+                      <Sparkles className="h-4 w-4 text-amber-400" />
+                      <span className="text-xs font-semibold text-zinc-200">
+                        Live Demonstration Document Suite (.jpg)
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-1.5 rounded-lg border border-zinc-800 bg-zinc-900 p-0.5 text-[11px]">
+                      <button
+                        type="button"
+                        onClick={() => setDemoSetTab('set2')}
+                        className={`rounded-md px-2.5 py-1 font-medium transition-colors ${
+                          demoSetTab === 'set2'
+                            ? 'bg-blue-600 text-white shadow'
+                            : 'text-zinc-400 hover:text-zinc-200'
+                        }`}
+                      >
+                        Set 2: New Demo Suite (8 .jpg)
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setDemoSetTab('set1')}
+                        className={`rounded-md px-2.5 py-1 font-medium transition-colors ${
+                          demoSetTab === 'set1'
+                            ? 'bg-blue-600 text-white shadow'
+                            : 'text-zinc-400 hover:text-zinc-200'
+                        }`}
+                      >
+                        Set 1: Baseline (5 .jpg)
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
+                    {(demoSetTab === 'set2' ? DEMO_FIXTURES_SET_2 : DEMO_FIXTURES_SET_1).map((fixture) => (
+                      <div
+                        key={fixture.file}
+                        className="flex items-center justify-between gap-2 rounded-lg border border-zinc-800/80 bg-zinc-900/60 px-3 py-2 text-xs transition-colors hover:border-zinc-700"
+                      >
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate font-medium text-zinc-200">{fixture.label}</p>
+                          <p className="truncate text-[11px] text-zinc-500">{fixture.desc}</p>
+                        </div>
+                        <div className="flex shrink-0 items-center gap-1.5">
+                          <a
+                            href={`/demo-docs/${fixture.file}`}
+                            target="_blank"
+                            rel="noreferrer"
+                            title="Preview full document in new tab"
+                            className="rounded p-1 text-zinc-400 hover:bg-zinc-800 hover:text-zinc-200"
+                          >
+                            <ExternalLink className="h-3.5 w-3.5" />
+                          </a>
+                          <button
+                            type="button"
+                            disabled={uploading}
+                            onClick={() => void attachDemoFile(fixture.file)}
+                            className="inline-flex items-center gap-1 rounded bg-blue-600/20 px-2 py-1 text-[11px] font-medium text-blue-300 hover:bg-blue-600/30 transition-colors disabled:opacity-50"
+                          >
+                            <FilePlus2 className="h-3 w-3" />
+                            Attach
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                  <p className="mt-2.5 text-[11px] text-zinc-500">
+                    💡 Click <strong>Attach</strong> to instantly stage any document for live demo verification, or click the link icon to inspect/download the full resolution image.
+                  </p>
+                </div>
+
                 <label className="flex cursor-pointer flex-col items-center rounded-xl border border-dashed border-blue-500/40 bg-blue-500/5 px-6 py-10 text-center transition-colors hover:bg-blue-500/10">
                   <UploadCloud className="mb-3 h-8 w-8 text-blue-400" />
                   <span className="text-sm font-medium text-zinc-200">Click to select files</span>
@@ -737,9 +858,20 @@ export default function SellerTransactionPage() {
                         </li>
                       ))}
                     </ul>
+
+                    <label className="mb-3 flex items-center gap-2 text-xs text-zinc-400 hover:text-zinc-200 cursor-pointer select-none">
+                      <input
+                        type="checkbox"
+                        checked={allowDuplicateMode}
+                        onChange={(e) => setAllowDuplicateMode(e.target.checked)}
+                        className="h-3.5 w-3.5 rounded border-zinc-700 bg-zinc-800 text-blue-600 focus:ring-0 focus:ring-offset-0"
+                      />
+                      <span>Allow reusing same document across transactions (Demo/Override)</span>
+                    </label>
+
                     <button
                       disabled={uploading}
-                      onClick={upload}
+                      onClick={() => void upload(allowDuplicateMode)}
                       className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white shadow-lg shadow-blue-500/20 transition-colors hover:bg-blue-500 disabled:cursor-not-allowed disabled:opacity-60"
                     >
                       {uploading ? (
@@ -758,10 +890,40 @@ export default function SellerTransactionPage() {
                 )}
 
                 {error && (
-                  <p className="mt-3 flex items-center gap-2 text-sm text-red-300">
-                    <AlertCircle className="h-4 w-4 shrink-0" />
-                    {error}
-                  </p>
+                  <div className="mt-3 rounded-lg border border-red-500/30 bg-red-950/30 p-3 text-sm text-red-300">
+                    <div className="flex items-start gap-2">
+                      <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-red-400" />
+                      <div className="flex-1">
+                        <p>{error}</p>
+                        {(error.toLowerCase().includes('already been') || error.toLowerCase().includes('duplicate')) && (
+                          <div className="mt-2.5 flex flex-wrap items-center gap-2.5">
+                            {files.length > 0 ? (
+                              <button
+                                type="button"
+                                disabled={uploading}
+                                onClick={() => void upload(true)}
+                                className="inline-flex items-center gap-1.5 rounded-md bg-amber-600 hover:bg-amber-500 px-3 py-1.5 text-xs font-semibold text-white shadow transition-colors disabled:opacity-60"
+                              >
+                                {uploading ? (
+                                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                ) : (
+                                  <UploadCloud className="h-3.5 w-3.5" />
+                                )}
+                                Upload anyway (Allow duplicate)
+                              </button>
+                            ) : (
+                              <span className="text-xs text-amber-300/90">
+                                Select the file again and check &ldquo;Allow reusing same document&rdquo; to proceed.
+                              </span>
+                            )}
+                            <span className="text-[11px] text-zinc-400">
+                              Bypasses anti-replay duplicate guard for demo or testing.
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
                 )}
                 {notice && (
                   <p className="mt-3 flex items-center gap-2 text-sm text-emerald-300">

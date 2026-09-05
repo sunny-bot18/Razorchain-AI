@@ -78,13 +78,13 @@ export function CommandPalette({
       },
     },
     {
-      id: 'filter_aegis',
-      label: 'Show: Blocked by Aegis Firewall / Tamper Detected',
+      id: 'filter_flagged',
+      label: 'Show: Discrepancy Flagged / Review Needed',
       category: 'Smart Filters',
       icon: ShieldAlert,
-      badge: 'Security',
+      badge: 'Review',
       action: () => {
-        onSelectFilter?.('aegis_flagged');
+        onSelectFilter?.('discrepancy_flagged');
         onOpenChange(false);
       },
     },
@@ -191,7 +191,7 @@ export function CommandPalette({
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               onKeyDown={handleKeyDown}
-              placeholder="Type a command, filter, or transaction number… (e.g. 'Blocked by Aegis')"
+              placeholder="Type a command, filter, or transaction number… (e.g. 'Discrepancy Flagged')"
               className="w-full bg-transparent text-sm text-zinc-100 placeholder:text-zinc-500 focus:outline-none"
             />
             <kbd className="hidden sm:inline-block rounded bg-zinc-800 px-2 py-0.5 text-[10px] font-mono text-zinc-400">

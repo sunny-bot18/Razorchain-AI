@@ -37,7 +37,6 @@ import { FreshnessIndicator } from '@/components/ui/freshness-indicator';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet';
 import { CommandPalette } from '@/components/ui/command-palette';
 import { AiConfidenceCard } from '@/components/ai/ai-confidence-card';
-import { ForensicBadge } from '@/components/ai/forensic-tooltip';
 import { TypedConfirmationDialog } from '@/components/ui/alert-dialog';
 import { InboxZeroCard } from '@/components/dashboard/inbox-zero-card';
 import { OpsImpersonationBar } from '@/components/dashboard/ops-impersonation-bar';
@@ -237,8 +236,8 @@ export function ActionInboxDashboard({
         if (!match) return false;
       }
 
-      if (selectedFilterPreset === 'aegis_flagged') {
-        return tx.status === 'VERIFICATION_FAILED' || (tx.forensicFlags && tx.forensicFlags.length > 0);
+      if (selectedFilterPreset === 'discrepancy_flagged') {
+        return tx.status === 'VERIFICATION_FAILED';
       }
       if (selectedFilterPreset === 'high_value') {
         return tx.amount >= 1_000_000 || tx.requiresDualApproval;
@@ -403,15 +402,15 @@ export function ActionInboxDashboard({
             <Filter className="h-3 w-3" /> Saved Views:
           </span>
           <button
-            onClick={() => handlePresetSelect('aegis_flagged')}
+            onClick={() => handlePresetSelect('discrepancy_flagged')}
             className={cn(
               'rounded-lg border px-2.5 py-1 text-xs font-medium transition-colors',
-              selectedFilterPreset === 'aegis_flagged'
+              selectedFilterPreset === 'discrepancy_flagged'
                 ? 'border-red-500/50 bg-red-500/15 text-red-300'
                 : 'border-zinc-800 bg-zinc-900/60 text-zinc-400 hover:border-zinc-700 hover:text-zinc-200'
             )}
           >
-            🚨 Blocked by Aegis
+            🚨 Discrepancy Flagged
           </button>
           <button
             onClick={() => handlePresetSelect('high_value')}
@@ -634,7 +633,7 @@ export function ActionInboxDashboard({
               </thead>
               <tbody className="divide-y divide-zinc-800/60">
                 {displayedTransactions.map((tx, idx) => {
-                  const hasForensicAlert = tx.status === 'VERIFICATION_FAILED' || (tx.forensicFlags && tx.forensicFlags.length > 0);
+                  const hasDiscrepancyAlert = tx.status === 'VERIFICATION_FAILED';
                   const isKeyboardFocused = idx === focusedRowIndex;
                   const isDualApproval = tx.amount >= 1_000_000 || tx.requiresDualApproval;
 
@@ -651,7 +650,7 @@ export function ActionInboxDashboard({
                       className={cn(
                         'group cursor-pointer transition-colors hover:bg-zinc-800/50 outline-none',
                         isKeyboardFocused && 'bg-zinc-800/70 ring-1 ring-inset ring-blue-500/80',
-                        hasForensicAlert && 'bg-red-950/10'
+                        hasDiscrepancyAlert && 'bg-red-950/10'
                       )}
                       onClick={() => openDrawer(tx)}
                       onFocus={() => setFocusedRowIndex(idx)}
@@ -705,9 +704,9 @@ export function ActionInboxDashboard({
                               <RotateCcw className="h-3 w-3" /> Escrow Returned
                             </span>
                           )}
-                          {hasForensicAlert && (
+                          {hasDiscrepancyAlert && (
                             <span className="inline-flex items-center gap-1 text-[10px] font-mono font-bold text-red-400">
-                              <ShieldAlert className="h-3 w-3" /> Aegis Flagged
+                              <ShieldAlert className="h-3 w-3" /> Discrepancy Flagged
                             </span>
                           )}
                         </div>
@@ -811,7 +810,7 @@ export function ActionInboxDashboard({
                     ? (drawerData.forensicFlags && drawerData.forensicFlags.length > 0 ? [] : ['po_number_match'])
                     : []
                 }
-                securityFlags={drawerData.forensicFlags || []}
+                securityFlags={drawerData.status === 'VERIFIED' ? [] : (drawerData.forensicFlags || [])}
               />
 
               {/* Four-Eyes Governance inside Drawer for High-Value */}
@@ -942,7 +941,7 @@ export function ActionInboxDashboard({
                       className="w-full inline-flex items-center justify-center gap-2 rounded-xl bg-red-600 px-4 py-2.5 text-xs font-bold text-white shadow-lg shadow-red-500/20 hover:bg-red-500 disabled:opacity-50 transition-colors"
                     >
                       <ShieldAlert className="h-4 w-4" />
-                      Override Aegis Security & Approve (Step-Up Auth)
+                      Authorize Override & Release (Step-Up Auth)
                     </button>
                   </div>
                 )}
@@ -1021,11 +1020,11 @@ export function ActionInboxDashboard({
       <TypedConfirmationDialog
         open={overrideModalOpen}
         onOpenChange={setOverrideModalOpen}
-        title="Step-Up Auth: Override Aegis Forensic Interception"
-        description="This high-stakes action will bypass Aegis security validation and release locked escrow funds. Re-enter your password and confirm authorization below."
+        title="Step-Up Auth: Compliance Override & Release"
+        description="This high-stakes action will override verification review and release locked escrow funds. Re-enter your password and confirm authorization below."
         requiredKeyword="OVERRIDE"
         requireReason={true}
-        reasonPlaceholder="Mandatory compliance rationale for overriding forensic security flag…"
+        reasonPlaceholder="Mandatory compliance rationale for overriding discrepancy flag…"
         requireStepUpAuth={true}
         stepUpAuthLabel="Confirm Account Password for Step-Up Multi-Sig"
         warningNote="Warning: Disbursed funds cannot be recalled once settled via RBI nodal gateway."

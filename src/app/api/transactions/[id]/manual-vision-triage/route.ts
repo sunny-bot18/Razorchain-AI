@@ -100,6 +100,46 @@ export async function POST(
       });
     }
 
+    // 2.5 Update or Upsert Security Checks if Approved
+    if (isApproved) {
+      const [existingSc] = await db
+        .select()
+        .from(schema.securityChecks)
+        .where(eq(schema.securityChecks.transactionId, txUuid))
+        .limit(1);
+
+      if (existingSc) {
+        await db
+          .update(schema.securityChecks)
+          .set({
+            status: "SAFE",
+            riskScore: 0.05,
+            flags: [],
+            details: {
+              ...(typeof existingSc.details === "object" && existingSc.details ? existingSc.details : {}),
+              manualTriageOverride: true,
+              certifiedBy: user.email,
+              overriddenAt: new Date().toISOString(),
+              notes,
+            },
+          })
+          .where(eq(schema.securityChecks.transactionId, txUuid));
+      } else {
+        await db.insert(schema.securityChecks).values({
+          transactionId: txUuid,
+          riskScore: 0.05,
+          status: "SAFE",
+          flags: [],
+          details: {
+            manualTriageOverride: true,
+            certifiedBy: user.email,
+            overriddenAt: new Date().toISOString(),
+            notes,
+          },
+        });
+      }
+    }
+
     // 3. Record Immutable Audit Log
     await db.insert(schema.auditLogs).values({
       transactionId: txUuid,

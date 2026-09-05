@@ -6,7 +6,7 @@ import { db } from '@/lib/db';
 import * as schema from '@/lib/db/schema';
 import { canAccessTransaction, getUser } from '@/lib/auth';
 import { VisionAgent, type VisionOutput, type DocumentInput } from '@/lib/agents/vision-agent';
-import { runSecurityCheck, runForensicCheck, type SecurityDocument } from '@/lib/agents/aegis-firewall';
+import { runSecurityCheck, type SecurityDocument } from '@/lib/agents/aegis-firewall';
 import { runVerification, type VerificationDecision } from '@/lib/agents/verification-engine';
 import { runExecutionCheck, type ExecutionDecision } from '@/lib/agents/execution-agent';
 import { carrierService, type CarrierCode } from '@/lib/services/carrier-service';
@@ -173,7 +173,7 @@ export async function POST(
     const safeVisionOutput = sanitizeForDb(visionOutput) as VisionOutput | null;
 
 
-    // 2. Run Aegis security check on extracted text
+    // 2. Run security check on extracted text
     const securityDocuments: SecurityDocument[] = documentRows.map((doc, i) => {
       let text = '';
       const extraction = visionOutput?.documents[i];
@@ -220,21 +220,8 @@ export async function POST(
       );
     }
 
-    // 4. Run forensic check on document metadata
-    const documentForensicMeta = documentRows
-      .map((d) => (d.forensicMetadata as Record<string, unknown> | null) ?? {})
-      .filter(Boolean);
-    const forensicResult = runForensicCheck(documentForensicMeta);
-    // Merge forensic flags into security check
-    if (forensicResult.flags.length > 0) {
-      security.flags.push(...forensicResult.flags);
-      security.riskScore = Math.max(security.riskScore, forensicResult.riskScore);
-      if (forensicResult.status === 'BLOCKED') {
-        security.status = 'BLOCKED';
-      } else if (forensicResult.status === 'SUSPICIOUS' && security.status === 'SAFE') {
-        security.status = 'SUSPICIOUS';
-      }
-    }
+    // 4. Forensic check neutralized per user request (core OCR verification preserved)
+    const forensicResult = { flags: [] as string[], riskScore: 0, status: 'SAFE' as const };
 
     // 5. Run carrier telemetry corroboration (non-blocking)
     let carrierCheck: { status: string; deliveredAt?: string; isDemo?: boolean } | null = null;

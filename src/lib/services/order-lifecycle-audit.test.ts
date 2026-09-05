@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { calculateDynamicDiscount } from './dynamic-discount-service';
 import { generateSettlementCertificatePdf, generateAuditDossierPdf } from './pdf-certificate-service';
+import { runExecutionCheck } from '../agents/execution-agent';
 import { createHmac, createHash } from 'crypto';
 
 describe('Complete Order Lifecycle & Governance Audit', () => {
@@ -251,6 +252,72 @@ describe('Complete Order Lifecycle & Governance Audit', () => {
       expect(dossierPdf).toBeInstanceOf(Uint8Array);
       expect(dossierPdf.length).toBeGreaterThan(1000);
       expect(Buffer.from(dossierPdf).toString('ascii', 0, 4)).toBe('%PDF');
+    });
+  });
+
+  describe('8. Admin Compliance Override & Execution Clearance', () => {
+    it('clears securityCheck block and sets status to SAFE when admin resolves override', () => {
+      // Prior intercepted state:
+      const priorSecurityCheck = {
+        riskScore: 0.95,
+        status: 'BLOCKED',
+        flags: ['PERCEPTUAL_DUPLICATE_DETECTED', 'ELA_TAMPER_DETECTED'],
+      };
+
+      // Admin executes step-up override:
+      const overrideDecision = 'APPROVED';
+      const adminEmail = 'admin@razorchain.in';
+      const overrideReason = 'Compliance verified delivery with consignee physical sign-off';
+
+      const resolvedSecurityCheck = {
+        ...priorSecurityCheck,
+        status: overrideDecision === 'APPROVED' ? 'SAFE' : priorSecurityCheck.status,
+        riskScore: overrideDecision === 'APPROVED' ? 0.05 : priorSecurityCheck.riskScore,
+        flags: overrideDecision === 'APPROVED' ? [] : priorSecurityCheck.flags,
+        details: {
+          adminOverride: true,
+          overriddenBy: adminEmail,
+          reason: overrideReason,
+        },
+      };
+
+      expect(resolvedSecurityCheck.status).toBe('SAFE');
+      expect(resolvedSecurityCheck.riskScore).toBe(0.05);
+      expect(resolvedSecurityCheck.flags).toEqual([]);
+      expect(resolvedSecurityCheck.details.adminOverride).toBe(true);
+    });
+
+    it('authorizes execution when transaction is VERIFIED despite prior security block', () => {
+      const verificationDecision = {
+        status: 'APPROVED' as const,
+        confidence: 0.98,
+        checks: [
+          { name: 'PO Number Match', label: 'PO Number', status: 'PASS' as const, expected: 'PO-1', actual: 'PO-1' },
+          { name: 'Consignment Quantity Match', label: 'Quantity', status: 'PASS' as const, expected: '500', actual: '500' },
+        ],
+        failedChecks: [],
+        reason: 'Clean delivery evidence',
+      };
+
+      // Security check healed to SAFE upon admin override clearance
+      const healedSecurityResult = {
+        riskScore: 0.05,
+        status: 'SAFE' as const,
+        flags: [],
+        details: { adminOverride: true },
+      };
+
+      const execution = runExecutionCheck({
+        transactionStatus: 'VERIFIED',
+        verificationResult: verificationDecision,
+        securityResult: healedSecurityResult,
+        paymentReservationStatus: 'authorized',
+        hasExistingPaymentExecution: false,
+        confidenceThreshold: 0,
+      });
+
+      expect(execution.authorized).toBe(true);
+      expect(execution.action).toBe('CAPTURE');
     });
   });
 });

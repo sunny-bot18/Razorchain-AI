@@ -115,13 +115,6 @@ export function computeRiskSignals({
   const hasDualSignCompleted = Boolean(firstApproverId && secondApproverId) || ['PAYMENT_AUTHORIZED', 'FUNDS_RESERVED', 'DELIVERY_PENDING', 'VERIFICATION_PENDING', 'VERIFIED', 'SETTLED'].includes(status || '');
   const isMakerSigned = Boolean(firstApproverId);
 
-  const hasTamperAlert = forensicFlags.some((f) =>
-    f.toLowerCase().includes('tamper') ||
-    f.toLowerCase().includes('exif') ||
-    f.toLowerCase().includes('gps') ||
-    f.toLowerCase().includes('mismatch') ||
-    f.toLowerCase().includes('hardware')
-  );
 
   // 1. Velocity Signal Evaluation
   let velocitySignal: RiskSignal;
@@ -183,7 +176,7 @@ export function computeRiskSignals({
   }
 
   const city = deliveryAddress ? deliveryAddress.split(',')[0].trim() : 'Bengaluru';
-  const geoSignal: RiskSignal = isFailed || forensicFlags.some((f) => f.toLowerCase().includes('gps') || f.toLowerCase().includes('location'))
+  const geoSignal: RiskSignal = isFailed
     ? {
         id: 'geofence_check',
         category: 'GEOLOCATION',
@@ -238,27 +231,16 @@ export function computeRiskSignals({
         icon: History,
       };
 
-  const provenanceSignal: RiskSignal = hasTamperAlert
-    ? {
-        id: 'chain_anchor',
-        category: 'PROVENANCE',
-        title: 'Cryptographic Provenance',
-        level: 'WARNING',
-        metric: 'Forensic Metadata Alert',
-        detail: 'Forensic inspection detected potential compression anomalies or missing sensor fingerprints.',
-        baseline: 'Required: Authentic OEM EXIF profile',
-        icon: Lock,
-      }
-    : {
-        id: 'chain_anchor',
-        category: 'PROVENANCE',
-        title: 'Cryptographic Provenance',
-        level: 'NOMINAL',
-        metric: 'Merkle Root Polygon PoS',
-        detail: 'Purchase order commitments and state hashes are anchored on Polygon PoS layer.',
-        baseline: 'Required: SHA-256 state tree anchor',
-        icon: Lock,
-      };
+  const provenanceSignal: RiskSignal = {
+    id: 'chain_anchor',
+    category: 'PROVENANCE',
+    title: 'Cryptographic Provenance',
+    level: 'NOMINAL',
+    metric: 'Merkle Root Polygon PoS',
+    detail: 'Purchase order commitments and state hashes are anchored on Polygon PoS layer.',
+    baseline: 'Required: SHA-256 state tree anchor',
+    icon: Lock,
+  };
 
   return [velocitySignal, geoSignal, counterpartySignal, provenanceSignal];
 }
